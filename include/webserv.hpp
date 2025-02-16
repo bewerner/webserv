@@ -19,6 +19,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "Data.hpp"
+struct Location
+{
+	std::string path;
+	std::multimap<std::string, std::string> location_config;
+};
+
+struct Server
+{
+	std::multimap<std::string, std::string> config;
+	std::vector<Location> locations;
+};
 
 void parser(std::vector<Server>& data, std::string confPath);

@@ -1,5 +1,27 @@
 #include "webserv.hpp"
 
+void printData(std::vector<Server> servers) {
+	std::cout << "Number of servers: " << servers.size() << '\n';
+
+	for (const auto& server : servers)
+	{
+		std::cout << std::endl;
+		static size_t serverNum = 1;
+		std::cout << "Server " << serverNum++ << ":\n";
+		for (const auto& [key, value] : server.config)
+			std::cout << key << ": " << value << '\n';
+		std::cout << "Locations:\n";
+		size_t locNum = 1;
+		for (const auto& loc : server.locations)
+		{
+			std::cout << locNum++ << ":\n";
+
+			for (const auto& [key, value] : loc.location_config)
+				std::cout << key << ": " << value << '\n';
+		}
+	}
+}
+
 std::string removeSpaces(const std::string& str)
 {
 	const std::string whitespace = " \t\n\r\f\v";
@@ -106,8 +128,9 @@ void parser(std::vector<Server>& servers, std::string confPath)
 
 	content = removeComments(content);
 	content = removeSpaces(content);
-	std::regex serverPattern(R"(server(\s|\n)*?\{(([^\{\}]|\n)*?\{([^\{\}]|\n)*?\})*?([^\{\}]|\n)*?\})");
-
+	// (server\s*\{(?:[^{}]*|{(?:[^{}]*|{[^{}]*})*})*})
+	// std::regex serverPattern(R"(server(\s|\n)*?\{(([^\{\}]|\n)*?\{([^\{\}]|\n)*?\})*?([^\{\}]|\n)*?\})");
+	std::regex serverPattern(R"(server\s*?\{[\s\S]*?(?=server\s*?\{|$))");
 	std::sregex_iterator it(content.begin(), content.end(), serverPattern);
 	std::sregex_iterator end;
 
@@ -119,4 +142,5 @@ void parser(std::vector<Server>& servers, std::string confPath)
 		servers.push_back(newServer);
 		++it;
 	}
+	printData(servers);
 }

@@ -1,6 +1,6 @@
 NAME				=	webserv
-VPATH				=	src
-SRC					=	main.cpp parser/Data.cpp parser/Parser.cpp
+VPATH				=	src src/parser
+SRC					=	main.cpp Parser.cpp
 OBJ					=	$(addprefix ./obj/, $(SRC:%.cpp=%.o))
 CPPFLAGS			=	-Wall -Wextra -Werror -std=c++17 -I include
 LDFLAGS				=
