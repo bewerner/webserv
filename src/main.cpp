@@ -116,20 +116,16 @@ int	poll_servers(std::vector<Server>& servers)
 
 int	main(int argc, char** argv)
 {
-	(void)argc;
-	(void)argv;
 
-	std::vector<Server>	servers;
-	Server	server;
-	server.port = 10;
-	servers.push_back(server);
-	server.port = 9999;
-	servers.push_back(server);
+	std::vector<Server> servers;
+	std::string path(argc > 1 ? argv[1] : "webserver.conf");
+
 
 	init_sockets(servers);
 
 	try
 	{
+		parser(servers, path);
 		while (true)
 		{
 			if (poll_servers(servers) <= 0)
@@ -147,4 +143,6 @@ int	main(int argc, char** argv)
 		std::cerr << e.what() << (errno ? ": " + std::string(strerror(errno)) : "") << std::endl;
 		exit(1);
 	}
+
+	return 0;
 }

@@ -1,9 +1,9 @@
 NAME				=	webserv
-VPATH				=	src
-SRC					=	main.cpp
+VPATH				=	src src/parser
+SRC					=	main.cpp Parser.cpp
 OBJ					=	$(addprefix ./obj/, $(SRC:%.cpp=%.o))
 CPPFLAGS			=	-Wall -Wextra -Werror -std=c++17 -I include
-LDFLAGS				=	
+LDFLAGS				=
 CC					=	c++
 
 COL_GREEN			= 	\033[32m
@@ -22,7 +22,7 @@ $(NAME): $(OBJ)
 	echo "$(COL_GREEN)Successfully built $(NAME).$(COL_DEFAULT)"
 
 ./obj/%.o: %.cpp
-	mkdir -p obj
+	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) -c $< -o $@
 
 clean:
