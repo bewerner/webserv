@@ -6,6 +6,8 @@ CPPFLAGS			=	-Wall -Wextra -Werror -std=c++17 -I include
 LDFLAGS				=
 CC					=	c++
 
+FSANITIZE			=	-g -fsanitize=address
+
 COL_GREEN			= 	\033[32m
 COL_RED				=	\033[31m
 COL_YELLOW			= 	\033[38;2;214;189;28m
@@ -35,4 +37,8 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re
+f: LDFLAGS += $(FSANITIZE)
+f: CPPFLAGS += $(FSANITIZE)
+f: re
+
+.PHONY: all clean fclean re f
