@@ -57,4 +57,5 @@ struct Connection
 	std::chrono::steady_clock::time_point	last_change;
 };
 
+// src/parser/parser.cpp
 void parser(std::vector<Server>& data, std::string confPath);
