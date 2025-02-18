@@ -4,6 +4,7 @@ void	receive_request_header(Connection& connection)
 {
 	char buffer[BUFFER_SIZE];
 	ssize_t	received = recv(connection.fd, buffer, BUFFER_SIZE, 0);
+	// std::cout << "received: " << received << std::endl;
 	// if (request.empty() && received < 0) {
 	// 	std::cerr << "recv failed: " << strerror(errno) << std::endl;
 	// }
@@ -93,6 +94,7 @@ void	init_sockets(std::vector<Server>& servers)
 
 void	accept_connection(std::vector<Connection>& connections, const Server& server, std::vector<pollfd>& fds)
 {
+	std::cout  << "<- accept connection ->" << std::endl;
 	Connection connection{};
 	socklen_t addrlen = sizeof(server.sockaddr);
 	connection.fd = accept(server.socket, (struct sockaddr*)& server.sockaddr, &addrlen);
@@ -156,6 +158,8 @@ int	main(int argc, char** argv)
 			{
 				if (i < servers.size())
 					accept_connection(connections, servers[i], fds);
+				else if (fds[i].revents & (POLLHUP | POLLERR))
+					connections[i].close = true;
 				else if (!connections[i].request_complete)
 					receive_request(connections[i]);
 				else if (!connections[i].response_complete)
