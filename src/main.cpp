@@ -1,50 +1,54 @@
 #include "webserv.hpp"
 
-std::string	receive_request(int fd)
+void	receive_request_header(Connection& connection)
 {
-	std::string request;
-	char buffer[1024];
-	ssize_t	received;
-	ssize_t	ready;
+	char buffer[BUFFER_SIZE];
+	ssize_t	received = recv(connection.fd, buffer, BUFFER_SIZE, 0);
+	// if (request.empty() && received < 0) {
+	// 	std::cerr << "recv failed: " << strerror(errno) << std::endl;
+	// }
+	connection.request_header.append(buffer, received);
 
-	while ((ready = recv(fd, buffer, sizeof(buffer), MSG_PEEK)) < 0)
+	// check if header is complete yet. if yes, parse it.
+	size_t found = connection.request_header.find("\r\n\r\n");
+	if (found != std::string::npos)
 	{
-		std::cout << "waiting" << std::endl;
-		usleep(100000);
+		connection.request_body = connection.request_header;
+		connection.request_body.erase(0, found + 4);
+		connection.request_header.resize(found + 2);
+		connection.request_header_complete = true;
+
+		// <<< parse request header here >>>
+
+		if (connection.request_body.size() == connection.request_body_content_length)
+			connection.request_complete = true;
 	}
-
-	while ((received = recv(fd, buffer, sizeof(buffer), 0)) > 0)
-		request.append(buffer, received);
-
-	if (request.empty() && received < 0) {
-		std::cerr << "recv failed: " << strerror(errno) << std::endl;
-	}
-
-	return (request);
 }
 
-void	handle_request(const Server& server)
+void	receive_request_body(Connection& connection)
 {
-	std::cout << "handle request on port " << server.port << std::endl;
-	socklen_t addrlen = sizeof(server.sockaddr);
-	int connection = accept(server.socket, (struct sockaddr*)& server.sockaddr, &addrlen);
-	if (connection < 0)
-		throw std::runtime_error("Failed to grab connection");
+	(void)connection;
+}
 
-	// sleep(1);
+void	receive_request(Connection& connection)
+{
+	std::cout  << "<- receiving request" << std::endl;
+	
+	if (!connection.request_header_complete)
+		receive_request_header(connection);
+	else if (!connection.request_complete)
+		receive_request_body(connection);
+	
+	////debug
+	if (connection.request_complete)
+		std::cout	 << "--------------------REQUEST-HEADER--------------------\n"
+					 << connection.request_header
+					 << "------------------------------------------------------\n\n\n" << std::endl;
+}
 
-	std::string request = receive_request(connection);
-	if (request.empty())
-		return ;
-	std::cout	<< "\n\n\n"
-				<< "--------------------REQUEST--------------------\n"
-				<< request << "\n"
-				<< "-----------------------------------------------\n\n\n" << std::endl;
-
-
-	// char buffer[20000];
-	// (void)read(connection, buffer, 20000);
-	// std::cout << "The message was: " << buffer << std::endl;
+void	send_response(Connection& connection)
+{
+	std::cout  << "   sending response ->" << std::endl;
 
 	std::ifstream index("index.html");
 	if (!index.is_open())
@@ -62,8 +66,8 @@ void	handle_request(const Server& server)
 			<<	"Connection: keep-alive\n"
 			<<	"\n";
 	std::string response = header.str() + body;
-	send(connection, response.c_str(), response.size(), 0);
-	close(connection);
+	send(connection.fd, response.c_str(), response.size(), 0);
+	connection.close = true;
 }
 
 void	init_sockets(std::vector<Server>& servers)
@@ -80,13 +84,30 @@ void	init_sockets(std::vector<Server>& servers)
 		server.sockaddr.sin_port = htons(server.port);
 
 		if (bind(server.socket, (struct sockaddr*)& server.sockaddr, sizeof(sockaddr)) < 0)
-			throw std::runtime_error("Failed to bind to port 9999");
+			throw std::runtime_error("Failed to bind to port " + std::to_string(server.port));
 		if (listen(server.socket, 10) < 0)
 			throw std::runtime_error("Failed to listen on socket");
+		std::cout << "init port " << server.port << std::endl;
 	}
 }
 
-void	init_pollfds(std::vector<pollfd>& fds, std::vector<Server>& servers)
+void	accept_connection(std::vector<Connection>& connections, const Server& server, std::vector<pollfd>& fds)
+{
+	Connection connection{};
+	socklen_t addrlen = sizeof(server.sockaddr);
+	connection.fd = accept(server.socket, (struct sockaddr*)& server.sockaddr, &addrlen);
+	if (connection.fd < 0)
+		throw std::runtime_error("Failed to grab connection");
+	connection.server = &server;
+	connection.last_change = std::chrono::steady_clock::now();
+
+	connections.push_back(connection);
+
+	pollfd pollfd = { .fd = connection.fd, .events = POLLIN, .revents = 0};
+	fds.push_back(pollfd);
+}
+
+void	init_fds(std::vector<pollfd>& fds, std::vector<Server>& servers)
 {
 	for (Server& server : servers)
 	{
@@ -97,52 +118,66 @@ void	init_pollfds(std::vector<pollfd>& fds, std::vector<Server>& servers)
 		servers[i].poll_fd = fds.data() + i;
 }
 
-int	poll_servers(std::vector<Server>& servers)
-{
-		static std::vector<pollfd> fds;
-		if (fds.empty())
-			init_pollfds(fds, servers);
-
-		std::cout << "polling" << std::endl;
-		int status = poll(fds.data(), fds.size(), 3000);
-		std::cout << "done polling" << std::endl;
-		if (status < 0)
-			std::cerr << "poll error" << std::endl;
-		if (status == 0)
-			std::cout << "0" << std::endl;
-
-		return (status);
-}
-
 int	main(int argc, char** argv)
 {
-
 	std::vector<Server> servers;
+	std::vector<Connection> connections;
+	std::vector<pollfd> fds;
 	std::string path(argc > 1 ? argv[1] : "webserver.conf");
 
+	parser(servers, path);
+
+	//--------------temporary for testing--------------------------
+	servers[0].port = 8080;
+	servers[1].port = 8081;
+	servers[2].port = 8082;
+	servers[0].request_timeout = std::chrono::seconds(10);
+	servers[1].request_timeout = std::chrono::seconds(10);
+	servers[2].request_timeout = std::chrono::seconds(10);
+	Connection padding{};
+	connections.push_back(padding);
+	connections.push_back(padding);
+	connections.push_back(padding);
+	//-------------------------------------------------------------
 
 	init_sockets(servers);
+	init_fds(fds, servers);
 
-	try
+	while (true)
 	{
-		parser(servers, path);
-		while (true)
+		std::cout << "servers:     " << servers.size() << std::endl;
+		std::cout << "connections: " << connections.size() - servers.size() << std::endl;
+
+		poll(fds.data(), fds.size(), 1000);
+		for (size_t i = 0; i < fds.size(); i++)
 		{
-			if (poll_servers(servers) <= 0)
-				continue ;
-			for (const Server& server : servers)
+			auto now = std::chrono::steady_clock::now();
+			if (fds[i].revents)
 			{
-				if (server.poll_fd->revents)
-					handle_request(server);
+				if (i < servers.size())
+					accept_connection(connections, servers[i], fds);
+				else if (!connections[i].request_complete)
+					receive_request(connections[i]);
+				else if (!connections[i].response_complete)
+					send_response(connections[i]);
+				connections[i].last_change = now;
+				if (connections[i].request_complete)
+					fds[i].events = POLLOUT;
 			}
-			// sleep(1);
+			else if (i >= servers.size() && connections[i].last_change + connections[i].server->request_timeout <= now)
+				connections[i].close = true;
+			if (connections[i].close)
+			{
+				close(connections[i].fd);
+				connections.erase(connections.begin() + i);
+				fds.erase(fds.begin() + i);
+				i--;
+			}
 		}
 	}
-	catch (const std::exception& e)
-	{
-		std::cerr << e.what() << (errno ? ": " + std::string(strerror(errno)) : "") << std::endl;
-		exit(1);
-	}
-
-	return 0;
+	// catch (const std::exception& e)
+	// {
+	// 	std::cerr << e.what() << (errno ? ": " + std::string(strerror(errno)) : "") << std::endl;
+	// 	exit(1);
+	// }
 }
