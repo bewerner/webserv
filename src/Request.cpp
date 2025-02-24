@@ -9,15 +9,15 @@ void	trim_whitespaces(std::string& str)
 	str = new_str;
 }
 
-bool	parse_start_line(Connection& connection, std::istringstream& request)
+bool	parse_start_line(Request& request , std::istringstream& header)
 {
 	std::string	start_line;
-	std::getline(request, start_line);
+	std::getline(header, start_line);
 
 	std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
 	if (!std::regex_match(start_line, pattern))
 	{
-		connection.request.status_code = 400;
+		request.status_code = 400;
 		return (false);
 	}
 
@@ -29,43 +29,43 @@ bool	parse_start_line(Connection& connection, std::istringstream& request)
 	istream >> method >> request_target >> protocol;
 	if (method != "GET" && method != "POST" && method != "DELETE")
 	{
-		connection.request.status_code = 405;
+		request.status_code = 405;
 		return (false);
 	}
-	connection.request.method = method;
+	request.method = method;
 
-	connection.request.request_target = request_target;
+	request.request_target = request_target;
 
 	size_t	pos = start_line.find("HTTP");
 	if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')
 	{
-		connection.request.status_code = 505;
+		request.status_code = 505;
 		return (false);
 	}
-	connection.request.protocol = "HTTP/1.1";
+	request.protocol = "HTTP/1.1";
 
 	return (true);
 }
 
-bool	parse_header(Connection& connection, std::string& key, std::string& value)
+bool	parse_header(Request& request, std::string& key, std::string& value)
 {
 	if (key == "host")
 	{
-		if (connection.request.host.length() != 0)
+		if (request.host.length() != 0)
 		{
-			connection.request.status_code = 400;
+			request.status_code = 400;
 			return (false);
 		}
-		connection.request.host = value;
+		request.host = value;
 	}
 	else if (key == "connection")
 	{
 		if (value == "close" || value == "keep-alive")
-			connection.request.connection = value;
+			request.connection = value;
 	}
 	else if (key == "content-type")
 	{
-		connection.request.content_type = value;
+		request.content_type = value;
 	}
 	else if (key == "content-length")
 	{
@@ -73,35 +73,34 @@ bool	parse_header(Connection& connection, std::string& key, std::string& value)
 		{
 			if (!std::all_of(value.begin(), value.end(), ::isdigit))
 				throw std::invalid_argument("Value can only contain digits");
-			connection.request.content_length = std::stoul(key);
+			request.content_length = std::stoul(key);
 			// if (value_length > std::numeric_limits<unsigned int>::max())
 				// throw std::out_of_range("Value is greater than max unsigned int");
-			// connection.request.content_length = static_cast<unsigned int>(value_length);
+			// request.content_length = static_cast<unsigned int>(value_length);
 		}
 		catch (std::invalid_argument &e)
 		{
-			connection.request.status_code = 400;
+			request.status_code = 400;
 			return (false);
 		}
 		catch (std::out_of_range &e)
 		{
-			connection.request.status_code = 413;
+			request.status_code = 413;
 			return (false);
 		}
 	}
 	return (true);
 }
 
-void	parse_request(Connection& connection, std::string& request_header)
+void	parse_request(Request& request)
 {
-	// only request as input, instead of connection
-	std::istringstream request(request_header);
+	std::istringstream header(request.header);
 
-	if (!parse_start_line(connection, request))
+	if (!parse_start_line(request, header))
 		return ;
 
 	std::string	line;
-	while (std::getline(request, line))
+	while (std::getline(header, line))
 	{
 		std::regex	pattern(R"(\S+:\s*\S+)");
 		if (!std::regex_match(line, pattern))
@@ -115,9 +114,9 @@ void	parse_request(Connection& connection, std::string& request_header)
 		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
 		trim_whitespaces(value);
 
-		if (!parse_header(connection, key, value))
+		if (!parse_header(request, key, value))
 			return ;
 	}
-	if (connection.request.host.length() == 0)
-		connection.request.status_code = 400;
+	if (request.host.length() == 0)
+		request.status_code = 400;
 }

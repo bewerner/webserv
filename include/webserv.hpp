@@ -8,12 +8,15 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <array>
 #include <map>
 #include <regex>
 #include <set>
 #include <cstdint>
 #include <chrono>
 #include <cctype>
+#include <algorithm>
+#include <list>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -22,9 +25,65 @@
 #include <unistd.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 // typedef std::chrono::steady_clock::time_point time_point;
-#define BUFFER_SIZE 1024
+// #define BUFFER_SIZE (size_t)1024*16
+#define BUFFER_SIZE (size_t)1024*64
+// #define BUFFER_SIZE (size_t)2999999
+// #define BUFFER_SIZE (size_t)1
+
+struct Request
+{
+	std::string		header;
+	bool			header_received = false;
+	size_t			remaining_bytes = 0;
+	std::string		body;
+	bool			received = false;
+
+	std::string		method;
+	std::string		request_target;
+	std::string		protocol;
+	std::string		host;
+	std::string 	connection;
+	std::string 	content_type;
+	size_t			content_length = 0;
+	int				status_code = 0;
+};
+
+struct Response
+{
+	std::string			header;
+	std::ifstream*		ifs_body = nullptr;
+	std::vector<char>	buffer;
+	~Response(void){delete ifs_body;}
+};
+
+struct Server;
+
+struct Connection
+{
+	int				fd;
+	const Server*	server;
+	short			events = POLLIN;
+	bool			close = false;
+
+	Request			request;
+	Response		response;
+
+	std::chrono::steady_clock::time_point	timeout;
+
+	short*			revents = nullptr;
+
+	std::vector<char>	buffer;
+
+	Connection(Server* server);
+	~Connection(void);
+
+	void	receive(void);
+	void	respond(void);
+};
 
 struct Location
 {
@@ -35,44 +94,20 @@ struct Location
 struct Server
 {
 	std::multimap<std::string, std::string> config;
-	std::vector<Location>	locations;
-	uint16_t				port;
-	int						socket;
-	sockaddr_in				sockaddr;
-	pollfd*					poll_fd;
-	std::chrono::seconds	request_timeout;
-};
+	std::vector<Location>		locations;
+	std::list<Connection>	 	connections;
+	uint16_t					port;
+	int							socket;
+	sockaddr_in					sockaddr;
+	std::chrono::seconds		request_timeout;
 
-struct Request
-{
-	std::string		request_header; // todo
-	std::string		method;
-	std::string		request_target;
-	std::string		protocol;
-	std::string		host;
-	std::string 	connection;
-	std::string 	content_type;
-	size_t			content_length;
-	int				status_code;
-};
+	short*						revents;
 
-struct Connection
-{
-	int				fd;
-	const Server*	server;
-	Request			request;
-	std::string		request_header;
-	bool			request_header_complete;
-	std::string		request_body;
-	bool			request_complete;
-	bool			response_complete;
-	size_t			request_body_content_length;
-	pollfd*			poll_fd;
-	bool			close;
-	std::chrono::steady_clock::time_point	last_change;
+	void	accept_connection(void);
+	void	clean_connections(void);
 };
 
 // src/parser/parser.cpp
 void	parser(std::vector<Server>& data, std::string confPath);
 
-void	parse_request(Connection& connection, std::string& request_header);
+void	parse_request(Request& request);
