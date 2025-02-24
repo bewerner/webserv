@@ -19,7 +19,7 @@ void	receive_request_header(Connection& connection)
 		connection.request_header.resize(found + 2);
 		connection.request_header_complete = true;
 
-		// <<< parse request header here >>>
+		parse_request(connection, connection.request_header);
 
 		if (connection.request_body.size() == connection.request_body_content_length)
 			connection.request_complete = true;

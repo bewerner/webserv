@@ -13,6 +13,7 @@
 #include <set>
 #include <cstdint>
 #include <chrono>
+#include <cctype>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -42,10 +43,24 @@ struct Server
 	std::chrono::seconds	request_timeout;
 };
 
+struct Request
+{
+	std::string		request_header; // todo
+	std::string		method;
+	std::string		request_target;
+	std::string		protocol;
+	std::string		host;
+	std::string 	connection;
+	std::string 	content_type;
+	size_t			content_length;
+	int				status_code;
+};
+
 struct Connection
 {
 	int				fd;
 	const Server*	server;
+	Request			request;
 	std::string		request_header;
 	bool			request_header_complete;
 	std::string		request_body;
@@ -58,4 +73,6 @@ struct Connection
 };
 
 // src/parser/parser.cpp
-void parser(std::vector<Server>& data, std::string confPath);
+void	parser(std::vector<Server>& data, std::string confPath);
+
+void	parse_request(Connection& connection, std::string& request_header);
