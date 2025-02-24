@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <chrono>
 #include <algorithm>
+#include <list>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -32,6 +33,49 @@
 // #define BUFFER_SIZE (size_t)2999999
 // #define BUFFER_SIZE (size_t)1
 
+struct Request
+{
+	std::string		header;
+	bool			header_received = false;
+	size_t			body_content_length = 0;
+	size_t			remaining_bytes = 0;
+	std::string		body;
+	bool			received = false;
+};
+
+struct Response
+{
+	std::string			header;
+	std::ifstream*		ifs_body = nullptr;
+	std::vector<char>	buffer;
+	~Response(void){delete ifs_body;}
+};
+
+struct Server;
+
+struct Connection
+{
+	int				fd;
+	const Server*	server;
+	short			events = POLLIN;
+	bool			close = false;
+
+	Request			request;
+	Response		response;
+
+	std::chrono::steady_clock::time_point	timeout;
+
+	short*			revents = nullptr;
+
+	std::vector<char>	buffer;
+
+	Connection(Server* server);
+	~Connection(void);
+
+	void	receive(void);
+	void	respond(void);
+};
+
 struct Location
 {
 	std::string path;
@@ -41,32 +85,17 @@ struct Location
 struct Server
 {
 	std::multimap<std::string, std::string> config;
-	std::vector<Location>	locations;
-	uint16_t				port;
-	int						socket;
-	sockaddr_in				sockaddr;
-	std::chrono::seconds	request_timeout;
-};
+	std::vector<Location>		locations;
+	std::list<Connection>	 	connections;
+	uint16_t					port;
+	int							socket;
+	sockaddr_in					sockaddr;
+	std::chrono::seconds		request_timeout;
 
-struct Connection
-{
-	int				fd;
-	const Server*	server;
+	short*						revents;
 
-	std::string		request_header;
-	bool			request_header_received;
-	size_t			request_body_content_length;
-	std::string		request_body;
-	bool			request_received;
-
-	std::string			response_header;
-	std::ifstream*		ifs_body;
-	std::vector<char>	buffer;
-
-	short			events;
-
-	std::chrono::steady_clock::time_point	timeout;
-	bool			close;
+	void	accept_connection(void);
+	void	clean_connections(void);
 };
 
 // src/parser/parser.cpp
