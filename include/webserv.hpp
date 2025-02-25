@@ -100,7 +100,7 @@ struct Server
 	std::vector<Location>		locations;
 	std::list<Connection>	 	connections;
 	uint16_t					port;
-	int							socket;
+	int							socket = -1;
 	sockaddr_in					sockaddr;
 	std::chrono::seconds		request_timeout;
 
@@ -108,6 +108,8 @@ struct Server
 
 	void	accept_connection(void);
 	void	clean_connections(void);
+
+	~Server(void){if (socket != -1) close(socket);};
 };
 
 // src/parser/parser.cpp
