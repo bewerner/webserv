@@ -50,15 +50,18 @@ struct Request
 	std::string 	connection = "keep-alive";
 	std::string 	content_type;
 	size_t			content_length = 0;
-	int				status_code = 0;
 };
 
 struct Response
 {
 	std::string			header;
+	std::string			status_text;
+	std::string			body_path;
 	std::ifstream*		ifs_body = nullptr;
 	std::vector<char>	buffer;
 	~Response(void){delete ifs_body;}
+	void	set_body_path(int& status_code, const std::string& request_target);
+	void	set_status_text(const int status_code);
 
 	std::string 		connection;
 };
@@ -71,6 +74,7 @@ struct Connection
 	const Server*	server;
 	short			events = POLLIN;
 	bool			close = false;
+	int				status_code = 0;
 
 	Request			request;
 	Response		response;
@@ -109,11 +113,11 @@ struct Server
 	void	accept_connection(void);
 	void	clean_connections(void);
 
-	~Server(void){if (socket != -1) close(socket);};
+	~Server(void){if (socket != -1) close(socket);}
 };
 
 // src/parser/parser.cpp
 void	parser(std::vector<Server>& data, std::string confPath);
 
-void	parse_request(Request& request);
-bool	parse_start_line(Request& request , std::istringstream& header);
+void	parse_request(Request& request, int& status_code);
+bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);

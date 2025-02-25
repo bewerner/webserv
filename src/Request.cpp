@@ -1,24 +1,25 @@
 #include "webserv.hpp"
 
-void	trim_whitespaces(std::string& str)
-{
-	size_t	start = str.find_first_not_of(" \t\n\r\f\v");
-	size_t	end = str.find_last_not_of(" \t\n\r\f\v");
+// void	trim_whitespaces(std::string& str)
+// {
+// 	size_t	start = str.find_first_not_of(" \t\n\r\f\v");
+// 	size_t	end = str.find_last_not_of(" \t\n\r\f\v");
 
-	std::string	new_str = str.substr(start, end + 1 - start);
-	str = new_str;
-}
+// 	std::string	new_str = str.substr(start, end + 1 - start);
+// 	str = new_str;
+// }
 
-bool	parse_start_line(Request& request , std::istringstream& iss_header)
+bool	parse_start_line(Request& request , std::istringstream& iss_header, int& status_code)
 {
 	std::string	start_line;
 	std::getline(iss_header, start_line);
 
 	// std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
-	std::regex	pattern(R"([A-Z]+\s+\/\S*\s+HTTP\/\d+\.?\d{0,3}\s*)");
+	std::regex	pattern(R"([A-Z]+ +\/\S* +HTTP\/\d+\.?\d{0,3} *\r?)");
 	if (!std::regex_match(start_line, pattern))
 	{
-		request.status_code = 400;
+		std::cout << "------------------------------pattern mismatch" << std::endl;
+		status_code = 400;
 		return (false);
 	}
 
@@ -30,7 +31,7 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header)
 	istream >> method >> request_target >> protocol;
 	if (method != "GET" && method != "POST" && method != "DELETE")
 	{
-		request.status_code = 405;
+		status_code = 405;
 		return (false);
 	}
 	request.method = method;
@@ -40,12 +41,12 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header)
 	// size_t	pos = start_line.find("HTTP");
 	// if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')
 	// {
-	// 	request.status_code = 505;
+	// 	status_code = 505;
 	// 	return (false);
 	// }
 	if (protocol.find("HTTP/1.") == std::string::npos)
 	{
-		request.status_code = 505;
+		status_code = 505;
 		return (false);
 	}
 	request.protocol = "HTTP/1.1";
@@ -53,15 +54,10 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header)
 	return (true);
 }
 
-bool	parse_header(Request& request, std::string& key, std::string& value)
+bool	parse_header(Request& request, std::string& key, std::string& value, int& status_code)
 {
 	if (key == "host")
 	{
-		if (request.host.length() != 0)
-		{
-			request.status_code = 400;
-			return (false);
-		}
 		request.host = value;
 	}
 	else if (key == "connection")
@@ -86,43 +82,54 @@ bool	parse_header(Request& request, std::string& key, std::string& value)
 		}
 		catch (std::invalid_argument &e)
 		{
-			request.status_code = 400;
+		std::cout << "------------------------------b" << std::endl;
+			status_code = 400;
 			return (false);
 		}
 		catch (std::out_of_range &e)
 		{
-			request.status_code = 413;
+			status_code = 413;
 			return (false);
 		}
 	}
 	return (true);
 }
 
-void	parse_request(Request& request)
+void	parse_request(Request& request, int& status_code)
 {
 	std::istringstream iss_header(request.header);
 
-	if (!parse_start_line(request, iss_header))
+	if (!parse_start_line(request, iss_header, status_code))
 		return ;
 
 	std::string	line;
 	while (std::getline(iss_header, line))
 	{
-		std::regex	pattern(R"(\S+:\s*\S+)");
-		if (!std::regex_match(line, pattern))
+		// std::regex	pattern(R"(\S+:\s*(\S+\s*)+\r)");
+		std::smatch match;
+		std::regex	pattern(R"((\S+):\s*(\S+).*\r)");
+		if (!std::regex_match(line, match, pattern))
+		{
+			std::cout << "------------------------------MISMATCH" << std::endl;
 			continue ;
+		}
 
-		size_t	pos = line.find(":");
-		std::string	key = line.substr(0, pos);
-		std::string	value = line.substr(pos + 1);
+		// size_t	pos = line.find(":");
+		// std::string	key = line.substr(0, pos);
+		// std::string	value = line.substr(pos + 1);
+		std::string key = match[1];
+		std::string value = match[2];
 
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-		trim_whitespaces(value);
+		// trim_whitespaces(value);
 
-		if (!parse_header(request, key, value))
+		if (!parse_header(request, key, value, status_code))
 			return ;
 	}
-	if (request.host.length() == 0)
-		request.status_code = 400;
+	if (request.host.empty())
+	{
+		std::cout << "------------------------------c" << std::endl;
+		status_code = 400;
+	}
 }

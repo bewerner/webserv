@@ -53,9 +53,9 @@ void	Connection::receive(void)
 		if (!request.startline_parsed && request.header.find("\r\n") != std::string::npos)			// startline received -> parse it
 		{
 			std::istringstream iss_header(request.header);
-			parse_start_line(request, iss_header);
+			parse_start_line(request, iss_header, status_code);
 			request.startline_parsed = true;
-			if (request.status_code == 400 || request.status_code == 505)
+			if (status_code == 400 || status_code == 505)
 				request.received = true;
 		}
 		if (size_t found = request.header.find("\r\n\r\n"); found != std::string::npos)
@@ -65,7 +65,7 @@ void	Connection::receive(void)
 			size_t body_bytes = request.header.size() - (found + 4);								// how many bytes at the back of buffer belong to the body?
 			request.header.resize(found + 2);														// resize the header to end with \r\n
 			buffer.erase(buffer.begin(), buffer.begin() + (buffer.size() - body_bytes));			// remove the header bytes from the buffer so only body bytes remain
-			parse_request(request);
+			parse_request(request, status_code);
 			request.received = true; // TEMP
 		}
 		else
@@ -96,46 +96,42 @@ void	Connection::respond(void)
 {
 	std::cout << "   Sending response ->" << std::endl;
 
-	// temporary for testing
-	if (request.header.find("GET /favicon.ico HTTP") != std::string::npos)
-	{
-		// std::cout << "-------------------------------------------------asdf----------------------------------------------" << std::endl;
-		close = true;
-		return ;
-	}
-
-
 	if (!response.ifs_body)
 	{
-		// std::string filename = request.header;
-		// filename.erase(filename.begin(), filename.begin() + 5);
-		// filename.resize(9);
-		// std::string filename = "image.png";
-		std::string filename = "index.html";
-		// std::cout << filename << std::endl;
-		// std::ifstream image("index.html", std::ios::binary);
-		// std::cout << "   ifstream ->" << std::endl;
-		response.ifs_body = new std::ifstream(filename, std::ios::binary);
-		if (!response.ifs_body || !*response.ifs_body) {
-			std::cerr << "Failed to open test.png" << std::endl;
-			return ;
-		}
-		uintmax_t size = std::filesystem::file_size(filename);
 
-		if (!request.status_code)
-			request.status_code = 200;
+		if (!status_code)
+			status_code = 200;
 		response.connection = request.connection;
-		if (request.status_code >= 400)
+
+		response.set_body_path(status_code, request.request_target);
+		response.set_status_text(status_code);
+
+		if (status_code >= 400)
 			response.connection = "close";
 
+		response.ifs_body = new std::ifstream(response.body_path, std::ios::binary);
+		if (!response.ifs_body || !*response.ifs_body) {
+			std::cerr << "Failed to open test.png" << std::endl;
+			delete response.ifs_body;
+			response.ifs_body = nullptr;
+			status_code = 404;
+			return ;
+		}
+		uintmax_t size = std::filesystem::file_size(response.body_path);
+
 		std::ostringstream header;
-		header << "HTTP/1.1 " << request.status_code << " OK\r\n"
+		header << "HTTP/1.1 " << status_code << ' ' << response.status_text << "\r\n"
 			// << "Content-Type: image/png\r\n"
 			<< "Content-Type: text/html\r\n"
 			<< "Content-Length: " << size << "\r\n"
 			<< "Connection: " << response.connection << "\r\n\r\n";
 		response.header = header.str();
 		buffer.insert(buffer.end(), response.header.begin(), response.header.end());
+
+			// debug
+			std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
+						<< header.str()
+						<< "------------------------------------------------------\n\n\n" << std::endl;
 	}
 
 	if (!response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
