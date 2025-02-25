@@ -9,12 +9,13 @@ void	trim_whitespaces(std::string& str)
 	str = new_str;
 }
 
-bool	parse_start_line(Request& request , std::istringstream& header)
+bool	parse_start_line(Request& request , std::istringstream& iss_header)
 {
 	std::string	start_line;
-	std::getline(header, start_line);
+	std::getline(iss_header, start_line);
 
-	std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
+	// std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
+	std::regex	pattern(R"([A-Z]+\s+\/\S*\s+HTTP\/\d+\.?\d{0,3}\s*)");
 	if (!std::regex_match(start_line, pattern))
 	{
 		request.status_code = 400;
@@ -36,8 +37,13 @@ bool	parse_start_line(Request& request , std::istringstream& header)
 
 	request.request_target = request_target;
 
-	size_t	pos = start_line.find("HTTP");
-	if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')
+	// size_t	pos = start_line.find("HTTP");
+	// if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')
+	// {
+	// 	request.status_code = 505;
+	// 	return (false);
+	// }
+	if (protocol.find("HTTP/1.") == std::string::npos)
 	{
 		request.status_code = 505;
 		return (false);
@@ -94,13 +100,13 @@ bool	parse_header(Request& request, std::string& key, std::string& value)
 
 void	parse_request(Request& request)
 {
-	std::istringstream header(request.header);
+	std::istringstream iss_header(request.header);
 
-	if (!parse_start_line(request, header))
+	if (!parse_start_line(request, iss_header))
 		return ;
 
 	std::string	line;
-	while (std::getline(header, line))
+	while (std::getline(iss_header, line))
 	{
 		std::regex	pattern(R"(\S+:\s*\S+)");
 		if (!std::regex_match(line, pattern))

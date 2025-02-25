@@ -41,12 +41,13 @@ struct Request
 	size_t			remaining_bytes = 0;
 	std::string		body;
 	bool			received = false;
+	bool			startline_parsed = false;
 
 	std::string		method;
 	std::string		request_target;
 	std::string		protocol;
 	std::string		host;
-	std::string 	connection;
+	std::string 	connection = "keep-alive";
 	std::string 	content_type;
 	size_t			content_length = 0;
 	int				status_code = 0;
@@ -58,6 +59,8 @@ struct Response
 	std::ifstream*		ifs_body = nullptr;
 	std::vector<char>	buffer;
 	~Response(void){delete ifs_body;}
+
+	std::string 		connection;
 };
 
 struct Server;
@@ -111,3 +114,4 @@ struct Server
 void	parser(std::vector<Server>& data, std::string confPath);
 
 void	parse_request(Request& request);
+bool	parse_start_line(Request& request , std::istringstream& header);

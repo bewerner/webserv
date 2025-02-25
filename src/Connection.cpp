@@ -23,31 +23,48 @@ void	Connection::receive(void)
 {
 	std::cout  << "<- receiving request" << std::endl;
 
-	if (buffer.size() < BUFFER_SIZE)															// only receive new bytes if there is space in the buffer
+	if (buffer.size() < BUFFER_SIZE)																// only receive new bytes if there is space in the buffer
 	{
 		size_t capacity = BUFFER_SIZE - buffer.size();
 		if (request.header_received)
-			capacity = std::min(capacity, request.remaining_bytes);								// limit capacity by content length specified in header
+			capacity = std::min(capacity, request.remaining_bytes);									// limit capacity by content length specified in header
 		std::array<char, BUFFER_SIZE> tmp;
-		ssize_t	bytes_received = recv(fd, tmp.data(), BUFFER_SIZE - buffer.size(), 0);			// try to receive as many bytes as fit in the buffer
+		ssize_t	bytes_received = recv(fd, tmp.data(), BUFFER_SIZE - buffer.size(), 0);				// try to receive as many bytes as fit in the buffer
 		request.remaining_bytes -= bytes_received;
 		// error check
-		buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);					// append received bytes to buffer
+		buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);						// append received bytes to buffer
 	}
 
 	if (!request.header_received)
 	{
+		if (buffer.front() == '\xFF' || buffer.front() == '\x04')									// close without response (for example when pressing ctrl+c in telnet)
+		{
+			close = true;
+			return ;
+		}
+
 		request.header.append(buffer.begin(), buffer.end());
-		if (request.header == "\r\n")															// ignore empty lines when expecting header firstline
-			request.header.clear();
-		size_t found = request.header.find("\r\n\r\n");
-		if (found != std::string::npos)
+		while (request.header.find("\r\n") == 0)													// ignore empty lines when expecting header firstline
+		{
+			request.header.erase(0, 2);
+			buffer.erase(buffer.begin(), buffer.begin() + 2);
+		}
+
+		if (!request.startline_parsed && request.header.find("\r\n") != std::string::npos)			// startline received -> parse it
+		{
+			std::istringstream iss_header(request.header);
+			parse_start_line(request, iss_header);
+			request.startline_parsed = true;
+			if (request.status_code == 400 || request.status_code == 505)
+				request.received = true;
+		}
+		if (size_t found = request.header.find("\r\n\r\n"); found != std::string::npos)
 		{
 			request.header_received = true;
 
-			size_t body_bytes = request.header.size() - (found + 4);							// how many bytes at the back of buffer belong to the body?
-			request.header.resize(found + 2);													// resize the header to end with \r\n
-			buffer.erase(buffer.begin(), buffer.begin() + (buffer.size() - body_bytes));		// remove the header bytes from the buffer so only body bytes remain
+			size_t body_bytes = request.header.size() - (found + 4);								// how many bytes at the back of buffer belong to the body?
+			request.header.resize(found + 2);														// resize the header to end with \r\n
+			buffer.erase(buffer.begin(), buffer.begin() + (buffer.size() - body_bytes));			// remove the header bytes from the buffer so only body bytes remain
 			parse_request(request);
 			request.received = true; // TEMP
 		}
@@ -58,7 +75,6 @@ void	Connection::receive(void)
 	// {
 	// 	//write body
 	// }
-
 
 	if (request.received)
 	{
@@ -94,7 +110,8 @@ void	Connection::respond(void)
 		// std::string filename = request.header;
 		// filename.erase(filename.begin(), filename.begin() + 5);
 		// filename.resize(9);
-		std::string filename = "image.png";
+		// std::string filename = "image.png";
+		std::string filename = "index.html";
 		// std::cout << filename << std::endl;
 		// std::ifstream image("index.html", std::ios::binary);
 		// std::cout << "   ifstream ->" << std::endl;
@@ -105,12 +122,18 @@ void	Connection::respond(void)
 		}
 		uintmax_t size = std::filesystem::file_size(filename);
 
+		if (!request.status_code)
+			request.status_code = 200;
+		response.connection = request.connection;
+		if (request.status_code >= 400)
+			response.connection = "close";
+
 		std::ostringstream header;
-		header << "HTTP/1.1 200 OK\r\n"
-			<< "Content-Type: image/png\r\n"
-			// << "Content-Type: text/html\r\n"
+		header << "HTTP/1.1 " << request.status_code << " OK\r\n"
+			// << "Content-Type: image/png\r\n"
+			<< "Content-Type: text/html\r\n"
 			<< "Content-Length: " << size << "\r\n"
-			<< "Connection: keep-alive\r\n\r\n";
+			<< "Connection: " << response.connection << "\r\n\r\n";
 		response.header = header.str();
 		buffer.insert(buffer.end(), response.header.begin(), response.header.end());
 	}
@@ -131,6 +154,8 @@ void	Connection::respond(void)
 	// 	close = true;
 	if (response.ifs_body->eof() && buffer.empty())
 	{
+		if (response.connection != "keep-alive")
+			close = true;
 		//if connection not keep-alive but close, only set close=true here
 
 		events = POLLIN;
