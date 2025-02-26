@@ -14,8 +14,11 @@
 #include <set>
 #include <cstdint>
 #include <chrono>
+#include <cctype>
 #include <algorithm>
 #include <list>
+#include <csignal>
+#include <filesystem>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -39,18 +42,34 @@ struct Request
 {
 	std::string		header;
 	bool			header_received = false;
-	size_t			body_content_length = 0;
 	size_t			remaining_bytes = 0;
 	std::string		body;
 	bool			received = false;
+	bool			startline_parsed = false;
+
+	std::string		method;
+	std::string		request_target;
+	std::string		protocol;
+	std::string		host;
+	std::string 	connection = "keep-alive";
+	std::string 	content_type;
+	size_t			content_length = 0;
 };
 
 struct Response
 {
 	std::string			header;
+	std::string			status_text;
+	std::string			body_path;
+	std::string			content_type = "application/octet-stream";
 	std::ifstream*		ifs_body = nullptr;
 	std::vector<char>	buffer;
 	~Response(void){delete ifs_body;}
+	void	set_body_path(int& status_code, const std::string& request_target);
+	void	set_content_type(void);
+	void	set_status_text(const int status_code);
+
+	std::string 		connection;
 };
 
 struct Server;
@@ -61,6 +80,7 @@ struct Connection
 	const Server*	server;
 	short			events = POLLIN;
 	bool			close = false;
+	int				status_code = 0;
 
 	Request			request;
 	Response		response;
@@ -108,6 +128,11 @@ struct Location
 
 struct Server
 {
+	std::multimap<std::string, std::string> config;
+	std::vector<Location>		locations;
+	std::list<Connection>	 	connections;
+	uint16_t					port;
+	int							socket = -1;
 	std::map<std::string, ServerConfig> servConf; // (Aris)neuer variable wo die server gespeichert werden. 
 	std::multimap<std::string, std::string> config; // (Aris)von mir aus kann weg
 	std::vector<Location>		locations; //(Aris)von mir aus kann weg
@@ -115,13 +140,19 @@ struct Server
 	uint16_t					port; //(Aris)von mir aus kann weg
 	int							socket;
 	sockaddr_in					sockaddr;
-	std::chrono::seconds		request_timeout;
+	std::chrono::seconds		request_timeout = std::chrono::seconds(10);
+	std::chrono::seconds		response_timeout = std::chrono::seconds(10);
 
 	short*						revents;
 
 	void	accept_connection(void);
 	void	clean_connections(void);
+
+	~Server(void){if (socket != -1) close(socket);}
 };
 
 // src/parser/parser.cpp
-void parser(std::vector<Server>& data, std::string confPath);
+void	parser(std::vector<Server>& data, std::string confPath);
+
+void	parse_request(Request& request, int& status_code);
+bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);
