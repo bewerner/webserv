@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <signal.h>
+
 
 // typedef std::chrono::steady_clock::time_point time_point;
 // #define BUFFER_SIZE (size_t)1024*16
@@ -76,6 +78,28 @@ struct Connection
 	void	respond(void);
 };
 
+struct LocationConfig
+{
+	std::string					locationPath;
+	std::string					redirectURL;
+	std::string					documentRoot;
+	bool						autoIndexEnabled;
+	std::string					defaultFile;
+	std::string					uploadDirectory;
+	std::string					cgiHandlerExtension;
+	std::vector<std::string>	allowedMethods;
+};
+struct ServerConfig
+{
+	std::string					serverAddress;
+	uint16_t					port;
+	std::map<int, std::string>	errorPages;
+	size_t						maxClientBodySize;
+	std::vector<std::string>	serverNames;
+	std::vector<LocationConfig>	locationBlocks;
+};
+
+// (Aris)von mir aus kann der location enfernet werden wenn ihr das fur den momment nicht mehr benotigt
 struct Location
 {
 	std::string path;
@@ -84,10 +108,11 @@ struct Location
 
 struct Server
 {
-	std::multimap<std::string, std::string> config;
-	std::vector<Location>		locations;
-	std::list<Connection>	 	connections;
-	uint16_t					port;
+	std::map<std::string, ServerConfig> servConf; // (Aris)neuer variable wo die server gespeichert werden. 
+	std::multimap<std::string, std::string> config; // (Aris)von mir aus kann weg
+	std::vector<Location>		locations; //(Aris)von mir aus kann weg
+	std::list<Connection>	 	connections; //(Aris)von mir aus kann weg
+	uint16_t					port; //(Aris)von mir aus kann weg
 	int							socket;
 	sockaddr_in					sockaddr;
 	std::chrono::seconds		request_timeout;

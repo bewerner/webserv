@@ -106,3 +106,22 @@
 | Vary | How to match future request headers | `User-Agent, Accept-Encoding, Accept-Language` |
 | WWW-Authenticate | Authentication method required | `Basic realm="login", Bearer realm="token_required", Digest realm="restricted"` |
 
+
+| **Variable** | **Example** |
+|----------|----------------|
+| ***LocationConfig*** |
+| locationPath | location / { ... } |
+| redirectURL | return 301 http://www.example.com/new-path; |
+| documentRoot | root /var/www/html; |
+| autoIndexEnabled | autoindex off; (oder autoindex on;) |
+| defaultFile | index index.html; |
+| uploadDirectory | upload_dir /var/www/uploads; |
+| cgiHandlerExtension | cgi_extension .php; |
+| allowedMethods | limit_except GET POST DELETE { deny all; } |
+| ***ServerConfig*** |
+| serverAddress | server_name 127.0.0.1; |
+| port | listen 80; |
+| errorPages | error_page 404 /errors/404.html; |
+| maxClientBodySize | client_max_body_size 1048576; |
+| serverNames | server_name example.com www.example.com; |
+| locationBlocks | (enthält mehrere location-Blöcke, z. B. location / { ... }) |

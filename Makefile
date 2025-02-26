@@ -1,9 +1,9 @@
 NAME				=	webserv
 VPATH				=	src src/parser
-SRC					=	main.cpp parser.cpp Server.cpp Connection.cpp
+SRC					=	main.cpp Parser.cpp Server.cpp Connection.cpp
 OBJ					=	$(addprefix ./obj/, $(SRC:%.cpp=%.o))
 CPPFLAGS			=	-Wall -Wextra -Werror -std=c++17 -I include
-LDFLAGS				=
+LDFLAGS				=	-std=c++17 -I include -lstdc++fs
 CC					=	c++
 
 FSANITIZE			=	-g -fsanitize=address

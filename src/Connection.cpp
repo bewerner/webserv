@@ -1,4 +1,6 @@
 #include "webserv.hpp"
+#include <filesystem>
+namespace fs = std::filesystem;
 
 Connection::Connection(Server* server) : server(server)
 {
