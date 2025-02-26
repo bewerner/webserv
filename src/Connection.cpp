@@ -37,7 +37,7 @@ void	Connection::receive(void)
 
 	if (!request.header_received)
 	{
-		if (buffer.front() == '\xFF' || buffer.front() == '\x04')									// close without response (for example when pressing ctrl+c in telnet)
+		if (buffer.empty() || buffer.front() == '\xFF' || buffer.front() == '\x04')									// close without response (for example when pressing ctrl+c in telnet)
 		{
 			close = true;
 			return ;
@@ -98,6 +98,7 @@ void	Connection::respond(void)
 
 	if (!response.ifs_body)
 	{
+		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 
 		if (!status_code)
 			status_code = 200;

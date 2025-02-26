@@ -17,6 +17,8 @@
 #include <cctype>
 #include <algorithm>
 #include <list>
+#include <csignal>
+#include <filesystem>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -108,7 +110,8 @@ struct Server
 	uint16_t					port;
 	int							socket = -1;
 	sockaddr_in					sockaddr;
-	std::chrono::seconds		request_timeout;
+	std::chrono::seconds		request_timeout = std::chrono::seconds(10);
+	std::chrono::seconds		response_timeout = std::chrono::seconds(10);
 
 	short*						revents;
 
