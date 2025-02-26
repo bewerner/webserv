@@ -100,26 +100,25 @@ struct Connection
 
 struct LocationConfig
 {
-	std::string					locationPath;
-	std::string					redirectURL;
-	std::string					documentRoot;
-	bool						autoIndexEnabled;
-	std::string					defaultFile;
-	std::string					uploadDirectory;
-	std::string					cgiHandlerExtension;
-	std::vector<std::string>	allowedMethods;
+	std::string					location_path;
+	std::string					redirect_url;
+	std::string					document_root;
+	bool						auto_index_enabled;
+	std::string					default_file;
+	std::string					upload_directory;
+	std::string					cgi_handler_extension;
+	std::vector<std::string>	allowed_methods;
 };
 struct ServerConfig
 {
-	std::string					serverAddress;
+	std::string					server_address;
 	uint16_t					port;
-	std::map<int, std::string>	errorPages;
-	size_t						maxClientBodySize;
-	std::vector<std::string>	serverNames;
-	std::vector<LocationConfig>	locationBlocks;
+	std::map<int, std::string>	error_pages;
+	size_t						max_client_body_size;
+	std::vector<std::string>	server_names;
+	std::vector<LocationConfig>	location_blocks;
 };
 
-// (Aris)von mir aus kann der location enfernet werden wenn ihr das fur den momment nicht mehr benotigt
 struct Location
 {
 	std::string path;
@@ -134,11 +133,6 @@ struct Server
 	uint16_t					port;
 	int							socket = -1;
 	std::map<std::string, ServerConfig> servConf; // (Aris)neuer variable wo die server gespeichert werden. 
-	std::multimap<std::string, std::string> config; // (Aris)von mir aus kann weg
-	std::vector<Location>		locations; //(Aris)von mir aus kann weg
-	std::list<Connection>	 	connections; //(Aris)von mir aus kann weg
-	uint16_t					port; //(Aris)von mir aus kann weg
-	int							socket;
 	sockaddr_in					sockaddr;
 	std::chrono::seconds		request_timeout = std::chrono::seconds(10);
 	std::chrono::seconds		response_timeout = std::chrono::seconds(10);
