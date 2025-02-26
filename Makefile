@@ -3,7 +3,7 @@ VPATH				=	src src/parser
 SRC					=	main.cpp parser.cpp Server.cpp Connection.cpp Request.cpp Response.cpp
 OBJ					=	$(addprefix ./obj/, $(SRC:%.cpp=%.o))
 CPPFLAGS			=	-Wall -Wextra -Werror -std=c++17 -I include
-LDFLAGS				=	-std=c++17 -I include -lstdc++fs
+LDFLAGS				=	
 CC					=	c++
 
 FSANITIZE			=	-g -fsanitize=address

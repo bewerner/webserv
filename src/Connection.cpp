@@ -9,6 +9,13 @@ Connection::Connection(Server* server) : server(server)
 	fd = accept(server->socket, (struct sockaddr*)& server->sockaddr, &addrlen);
 	if (fd < 0)
 		throw std::runtime_error("Failed to grab connection");
+
+	// int opt = 1;
+	// setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+	// struct linger linger_opt = { 0, 0 }; // Linger active, timeout 0 seconds
+	// setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger_opt, sizeof(linger_opt));
+
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 		throw std::runtime_error("fcntl failed");
 	timeout = std::chrono::steady_clock::now() + server->request_timeout;
@@ -113,8 +120,8 @@ void	Connection::respond(void)
 		if (status_code >= 400)
 			response.connection = "close";
 
-		response.ifs_body = new std::ifstream(response.body_path, std::ios::binary);
-		if (!response.ifs_body || !*response.ifs_body)
+		response.ifs_body = std::make_shared<std::ifstream>(response.body_path, std::ios::binary);
+		if (!response.ifs_body || !response.ifs_body->is_open())
 		{
 			close = true;
 			return ;
@@ -122,11 +129,10 @@ void	Connection::respond(void)
 		uintmax_t size = std::filesystem::file_size(response.body_path);
 
 		std::ostringstream header;
-		header << "HTTP/1.1 " << status_code << ' ' << response.status_text << "\r\n"
-			// << "Content-Type: image/png\r\n"
-			<< "Content-Type: " << response.content_type << "\r\n"
-			<< "Content-Length: " << size << "\r\n"
-			<< "Connection: " << response.connection << "\r\n\r\n";
+		header	<< "HTTP/1.1 " << status_code << ' ' << response.status_text << "\r\n"
+				<< "Content-Type: " << response.content_type << "\r\n"
+				<< "Content-Length: " << size << "\r\n"
+				<< "Connection: " << response.connection << "\r\n\r\n";
 		response.header = header.str();
 		buffer.insert(buffer.end(), response.header.begin(), response.header.end());
 
