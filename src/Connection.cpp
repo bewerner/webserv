@@ -105,16 +105,15 @@ void	Connection::respond(void)
 
 		response.set_body_path(status_code, request.request_target);
 		response.set_status_text(status_code);
+		response.set_content_type();
 
 		if (status_code >= 400)
 			response.connection = "close";
 
 		response.ifs_body = new std::ifstream(response.body_path, std::ios::binary);
-		if (!response.ifs_body || !*response.ifs_body) {
-			std::cerr << "Failed to open test.png" << std::endl;
-			delete response.ifs_body;
-			response.ifs_body = nullptr;
-			status_code = 404;
+		if (!response.ifs_body || !*response.ifs_body)
+		{
+			close = true;
 			return ;
 		}
 		uintmax_t size = std::filesystem::file_size(response.body_path);
@@ -122,7 +121,7 @@ void	Connection::respond(void)
 		std::ostringstream header;
 		header << "HTTP/1.1 " << status_code << ' ' << response.status_text << "\r\n"
 			// << "Content-Type: image/png\r\n"
-			<< "Content-Type: text/html\r\n"
+			<< "Content-Type: " << response.content_type << "\r\n"
 			<< "Content-Length: " << size << "\r\n"
 			<< "Connection: " << response.connection << "\r\n\r\n";
 		response.header = header.str();

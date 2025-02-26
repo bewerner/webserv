@@ -57,10 +57,12 @@ struct Response
 	std::string			header;
 	std::string			status_text;
 	std::string			body_path;
+	std::string			content_type = "application/octet-stream";
 	std::ifstream*		ifs_body = nullptr;
 	std::vector<char>	buffer;
 	~Response(void){delete ifs_body;}
 	void	set_body_path(int& status_code, const std::string& request_target);
+	void	set_content_type(void);
 	void	set_status_text(const int status_code);
 
 	std::string 		connection;
