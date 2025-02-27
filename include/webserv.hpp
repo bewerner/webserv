@@ -106,18 +106,19 @@ struct LocationConfig
 	std::string								root;
 	std::multimap<std::string, std::string>	directives;
 	std::set<std::string>					allow_methods; // set ist anlich wie vector aber erlaubt keine dublicate genau das was ich hier brauchte.
-	bool									autoindex;
+	bool									autoindex = false;
 	std::string								index;
 	std::string								client_body_temp_path;
 	std::string				 				fastcgi_param;
+	size_t									client_max_body_size = 0;
 };
 
 struct ServerConfig
 {
 	std::string								addr; // adresse
-	uint16_t								listen; // nicht wundern ich habe das an nginx angepasst... und da der port heist listen.
+	uint16_t								listen = 80; // nicht wundern ich habe das an nginx angepasst... und da der port heist listen.
 	std::map<int, std::string>				error_page; // der int ist der error code der string der path zu den error page
-	size_t									client_max_body_size;
+	size_t									client_max_body_size = 0;
 	std::vector<std::string>				server_name; //meehre name moglich als beispiel www.beny.com www.sören.com und www.aris.com alle gehoster port 443.. 
 	std::map<std::string, LocationConfig>	locations; // Enthält den URI-Pfad der Location daswegen map..
 };

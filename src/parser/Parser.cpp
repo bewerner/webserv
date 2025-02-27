@@ -142,7 +142,7 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 				location.allow_methods.insert(method);
 		}
 		else if (key == "client_max_body_size")
-			location.client_body_temp_path = value;
+			location.client_max_body_size = std::stoull(value);
 		else 
 		{
 			location.directives.insert({key, value});
@@ -312,6 +312,7 @@ void validateConfigurations(const std::vector<Server>& servers) {
 	// ValidateIndex(servers);
 	// ValidateClientBodyTempPath(servers);
 	// ValidateFastcgiParam(servers);
+	// ValidateLocationClientMaxBodySize(servers);
 
 	// Server Validate TODO
 	// ValidateAddr(servers);

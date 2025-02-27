@@ -63,6 +63,8 @@ int	main(int argc, char** argv)
 	signal(SIGINT, sigint_handler);
 
 	parser(servers, argc > 1 ? argv[1] : "webserver.conf");
+	if (servers.empty())
+		return EXIT_FAILURE;
 
 	//--------------temporary for testing--------------------------
 	// servers[0].port = 8080;
