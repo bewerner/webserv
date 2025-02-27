@@ -104,7 +104,7 @@ struct LocationConfig
 {
 	std::string								path;
 	std::string								root;
-	std::multimap<std::string, std::string>	directives;
+	// std::multimap<std::string, std::string>	directives;
 	std::set<std::string>					allow_methods; // set ist anlich wie vector aber erlaubt keine dublicate genau das was ich hier brauchte.
 	bool									autoindex = false;
 	std::string								index;
@@ -115,17 +115,20 @@ struct LocationConfig
 
 struct ServerConfig
 {
-	std::string								addr; // adresse
-	uint16_t								listen = 80; // nicht wundern ich habe das an nginx angepasst... und da der port heist listen.
+	std::string								host = "0.0.0.0";
+	uint16_t								port = 80; // nicht wundern ich habe das an nginx angepasst... und da der port heist listen.
+	std::string								root;
+	std::string								index;
 	std::map<int, std::string>				error_page; // der int ist der error code der string der path zu den error page
 	size_t									client_max_body_size = 0;
-	std::vector<std::string>				server_name; //meehre name moglich als beispiel www.beny.com www.sören.com und www.aris.com alle gehoster port 443.. 
+	std::set<std::string>					server_name; //meehre name moglich als beispiel www.beny.com www.sören.com und www.aris.com alle gehoster port 443.. 
 	std::map<std::string, LocationConfig>	locations; // Enthält den URI-Pfad der Location daswegen map..
 };
 
 struct Server
 {
 	std::map<std::string, ServerConfig>		conf;
+	std::string								host = "0.0.0.0";
 	uint16_t								port; // Port-Nummer für Socket-Operationen, redundant mit conf[name].listen
 	std::list<Connection>					connections;
 	int										socket = -1;
@@ -140,8 +143,25 @@ struct Server
 
 	~Server(void){if (socket != -1) close(socket);}
 };
+/************************************************/
+// src/parser/
+/************************************************/
 
-// src/parser/parser.cpp
+//parser.cpp
 void	parser(std::vector<Server>& data, std::string confPath);
 void	parse_request(Request& request, int& status_code);
 bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);
+
+//utils.cpp
+std::string removeSpaces(const std::string& str);
+std::string removeComments(const std::string& str);
+void printData(const std::vector<Server>& servers);
+
+//validation.cpp
+bool isValidLocationKey(const std::string& key);
+bool isValidServerKey(const std::string& key);
+void validateConfigurations(const std::vector<Server>& servers);
+
+
+
+/************************************************/

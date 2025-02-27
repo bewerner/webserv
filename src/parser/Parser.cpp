@@ -1,111 +1,22 @@
 #include "webserv.hpp"
 
-void printData(const std::vector<Server>& servers)
+void parseListen(ServerConfig& config, const std::string& value, std::string& sharedHost, uint16_t& sharedPort)
 {
-	std::cout << "Number of servers: " << servers.size() << '\n';
-	size_t serverNum = 1;
-
-	for (const auto& server : servers)
+	std::string hostPart = "0.0.0.0";
+	std::string portPart = "80";
+	size_t colonPos = value.find(':');
+	if (colonPos != std::string::npos)
 	{
-		std::cout << std::endl;
-		std::cout << "Server " << serverNum++ << " (Port " << server.port << "):\n";
-		
-		for (const auto& [name, config] : server.conf)
-		{
-			std::cout << "Address: " << config.addr << "\n";
-			std::cout << "Port: " << config.listen << "\n";
-			
-			std::cout << "Max Client Body Size: " << config.client_max_body_size << "\n";
-			
-			std::cout << "Server Name: ";
-			for (const auto& serverName : config.server_name)
-				std::cout << serverName << " ";
-			std::cout << "\n";
-			
-			std::cout << "Error Pages: \n";
-			for (const auto& [errorCode, errorPage] : config.error_page)
-				std::cout << "  " << errorCode << ": " << errorPage << "\n";
-			
-			std::cout << "Locations: \n";
-			size_t locNum = 1;
-			for (const auto& [path, loc] : config.locations)
-			{
-				std::cout << locNum++ << ":\n";
-				std::cout << "  Path: " << loc.path << "\n";
-				
-				auto redirectIt = loc.directives.find("redirect");
-				std::string redirectUrl = (redirectIt != loc.directives.end()) ? redirectIt->second : "";
-				std::cout << "  Redirect URL: " << redirectUrl << "\n";
-				
-				std::cout << "  Document Root: " << loc.root << "\n";
-				std::cout << "  Auto Index: " << (loc.autoindex ? "enabled" : "disabled") << "\n";
-				std::cout << "  Default File: " << loc.index << "\n";
-				std::cout << "  Upload Directory: " << loc.client_body_temp_path << "\n";
-				std::cout << "  CGI Handler Extension: " << loc.fastcgi_param << "\n";
-				
-				std::cout << "  Allowed Methods: ";
-				for (const auto& method : loc.allow_methods)
-					std::cout << method << " ";
-				std::cout << "\n";
-			}
-			std::cout << "----------------------------------------\n";
-		}
+		hostPart = value.substr(0, colonPos);
+		portPart = value.substr(colonPos + 1);
 	}
-}
+	else
+		portPart = value;
 
-std::string removeSpaces(const std::string& str)
-{
-	const std::string whitespace = " \t\n\r\f\v";
-	size_t start = str.find_first_not_of(whitespace);
-	if (start == std::string::npos)
-		return "";
-	size_t end = str.find_last_not_of(whitespace);
-	return str.substr(start, end - start + 1);
-}
-
-std::string removeComments(const std::string& str)
-{
-	std::string result;
-	std::istringstream stream(str);
-	std::string line;
-
-	while (std::getline(stream, line))
-	{
-		size_t commentPos = line.find('#');
-		if (commentPos != std::string::npos)
-			line = line.substr(0, commentPos);
-		if (!removeSpaces(line).empty())
-			result += line + "\n";
-	}
-	return result;
-}
-
-bool isValidLocationKey(const std::string& key) {
-	static const std::set<std::string> validKeys =
-	{
-		"redirect",
-		"root",
-		"autoindex",
-		"index",
-		"upload_dir",
-		"cgi_extension",
-		"allow_methods",
-		"client_max_body_size"
-	};
-	return validKeys.find(key) != validKeys.end();
-}
-
-bool isValidServerKey(const std::string& key) {
-	static const std::set<std::string> validKeys =
-	{
-		"listen",
-		"server_name",
-		"host",
-		"server_address",
-		"client_max_body_size",
-		"error_page"
-	};
-	return validKeys.find(key) != validKeys.end();
+	config.host = hostPart;
+	config.port = static_cast<uint16_t>(std::stoi(portPart));
+	sharedHost = hostPart;
+	sharedPort = config.port;
 }
 
 void saveLocationConfig(LocationConfig& location, const std::string& line, const std::string& path) {
@@ -121,9 +32,6 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 		
 		if (!isValidLocationKey(key))
 			throw std::runtime_error("Invalid location configuration key: " + key);
-		
-		if (key == "redirect")
-			location.directives.insert({"redirect", value});
 		else if (key == "root")
 			location.root = value;
 		else if (key == "autoindex")
@@ -141,16 +49,13 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 			while (methodStream >> method)
 				location.allow_methods.insert(method);
 		}
-		else if (key == "client_max_body_size")
+		else
 			location.client_max_body_size = std::stoull(value);
-		else 
-		{
-			location.directives.insert({key, value});
-		}
 	}
 }
 
-void saveServerConfig(ServerConfig& config, const std::string& line, uint16_t port = 0) {
+void saveServerConfig(ServerConfig& config, const std::string& line, std::string& sharedHost, uint16_t& sharedPort)
+{
 	size_t sepPos = line.find(" ");
 	if (sepPos != std::string::npos)
 	{
@@ -158,33 +63,21 @@ void saveServerConfig(ServerConfig& config, const std::string& line, uint16_t po
 		std::string value = removeSpaces(line.substr(sepPos + 1));
 		if (value.back() == ';')
 			value.pop_back();
-		
 		if (!isValidServerKey(key))
 			throw std::runtime_error("Invalid server configuration key: " + key);
-		
 		if (key == "listen")
-		{
-			if (port == 0)
-			{
-				std::istringstream portStream(value);
-				std::string portStr;
-				if (portStream >> portStr)
-					config.listen = static_cast<uint16_t>(std::stoi(portStr));
-			}
-			else
-			{
-				config.listen = port;
-			}
-		}
+			parseListen(config, value, sharedHost, sharedPort);
 		else if (key == "server_name")
 		{
 			std::istringstream nameStream(value);
 			std::string name;
 			while (nameStream >> name)
-				config.server_name.push_back(name);
+				config.server_name.insert(name);
 		}
-		else if (key == "host" || key == "server_address")
-			config.addr = value;
+		else if (key == "root")
+			config.root = value;
+		else if (key == "index")
+			config.index = value;
 		else if (key == "client_max_body_size")
 			config.client_max_body_size = std::stoull(value);
 		else if (key == "error_page")
@@ -198,7 +91,7 @@ void saveServerConfig(ServerConfig& config, const std::string& line, uint16_t po
 	}
 }
 
-void extractMultiPortServerData(std::vector<Server>& servers, const std::string& block)
+void extractServerBlockLines(const std::string& block, std::vector<std::string>& configLines, std::vector<std::pair<std::string, std::string>>& locationLines)
 {
 	std::string cleanBlock = block;
 	size_t serverPos = cleanBlock.find("server");
@@ -210,10 +103,6 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 	std::string line;
 	bool insideLocation = false;
 	std::string currentPath;
-
-	std::vector<uint16_t> ports;
-	std::vector<std::string> configLines;
-	std::vector<std::pair<std::string, std::string>> locationLines;
 
 	while (std::getline(stream, line))
 	{
@@ -235,107 +124,94 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			insideLocation = false;
 			continue;
 		}
-		if (!insideLocation && line.find("listen") == 0)
-		{
-			size_t sepPos = line.find(" ");
-			if (sepPos != std::string::npos)
-			{
-				std::string value = removeSpaces(line.substr(sepPos + 1));
-				if (!value.empty() && value.back() == ';')
-					value.pop_back();
-				std::istringstream portStream(value);
-				std::string portStr;
-				while (portStream >> portStr)
-					ports.push_back(static_cast<uint16_t>(std::stoi(portStr)));
-			}
-			continue;
-		}
 		if (insideLocation)
 			locationLines.push_back({currentPath, line});
 		else
 			configLines.push_back(line);
 	}
+}
 
-	if (ports.empty())
-		ports.push_back(80);
-	for (uint16_t port : ports)
+void processServerConfig(const std::vector<std::string>& configLines, ServerConfig& serverConfig, std::string& host, uint16_t& port)
+{
+	for (const auto& configLine : configLines)
 	{
-		Server newServer;
-		ServerConfig serverConfig;
-		newServer.port = port;
-		serverConfig.listen = port;
-		for (const auto& configLine : configLines)
+		try
 		{
-			try
-			{
-				if (!configLine.empty())
-					saveServerConfig(serverConfig, configLine, port);
-			}
-			catch (const std::exception& e)
-			{
-				throw std::runtime_error("Error in server config: " + std::string(e.what()));
-			}
+			if (!configLine.empty())
+				saveServerConfig(serverConfig, configLine, host, port);
 		}
-		std::map<std::string, LocationConfig> locations;
-		for (const auto& [path, locLine] : locationLines)
+		catch (const std::exception& e)
 		{
-			if (locations.find(path) == locations.end())
-				locations[path] = LocationConfig();
-			try
-			{
-				if (!locLine.empty())
-					saveLocationConfig(locations[path], locLine, path);
-			}
-			catch (const std::exception& e)
-			{
-				throw std::runtime_error("Error in location config: " + std::string(e.what()));
-			}
+			throw std::runtime_error("Error in server config: " + std::string(e.what()));
 		}
-		serverConfig.locations = locations;
-		if (serverConfig.server_name.empty())
-			serverConfig.server_name.push_back("localhost");
-		std::string primaryName = serverConfig.server_name[0];
-		newServer.conf[primaryName] = serverConfig;
-		servers.push_back(newServer);
 	}
 }
 
+void processLocationConfigs(const std::vector<std::pair<std::string, std::string>>& locationLines, ServerConfig& serverConfig)
+{
+	std::map<std::string, LocationConfig> locations;
+	for (const auto& [path, locLine] : locationLines)
+	{
+		if (locations.find(path) == locations.end())
+			locations[path] = LocationConfig();
+		try
+		{
+			if (!locLine.empty())
+				saveLocationConfig(locations[path], locLine, path);
+		}
+		catch (const std::exception& e)
+		{
+			throw std::runtime_error("Error in location config: " + std::string(e.what()));
+		}
+	}
+	serverConfig.locations = locations;
+	for (auto& [path, location] : serverConfig.locations)
+	{
+		if (location.root.empty() && !serverConfig.root.empty())
+			location.root = serverConfig.root;
+		
+		if (location.index.empty() && !serverConfig.index.empty())
+			location.index = serverConfig.index;
+	}
+}
 
-void validateConfigurations(const std::vector<Server>& servers) {
-	(void)servers;
-	// Locations Validate TODO
-	// ValidatePath(servers);
-	// ValidateRoot(servers);
-	// ValidateDirectives(servers);
-	// ValidateAllowMethos(servers);
-	// ValidateAutoIndex(servers);
-	// ValidateIndex(servers);
-	// ValidateClientBodyTempPath(servers);
-	// ValidateFastcgiParam(servers);
-	// ValidateLocationClientMaxBodySize(servers);
+void extractMultiPortServerData(std::vector<Server>& servers, const std::string& block)
+{
+	std::vector<std::string> configLines;
+	std::vector<std::pair<std::string, std::string>> locationLines;
+	extractServerBlockLines(block, configLines, locationLines);
 
-	// Server Validate TODO
-	// ValidateAddr(servers);
-	// ValidateListe(servers);
-	// ValidateErrorPage(servers);
-	// ValidateClientMaxBodySize(servers);
-	// ValidateServerName(servers);
-	// ValidateLocations(servers);
+	Server newServer;
+	ServerConfig serverConfig;
+	std::string host = "0.0.0.0";
+	uint16_t port = 80;
+
+	processServerConfig(configLines, serverConfig, host, port);
+	newServer.host = host;
+	newServer.port = port;
+
+	processLocationConfigs(locationLines, serverConfig);
+	if (serverConfig.server_name.empty())
+		serverConfig.server_name.insert("localhost");
+	std::string primaryName = *serverConfig.server_name.begin();
+	newServer.conf[primaryName] = serverConfig;
+	servers.push_back(newServer);
 }
 
 void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
 {
-	std::map<uint16_t, std::vector<Server*>> portGroups;
+	std::map<std::pair<std::string, uint16_t>, std::vector<Server*>> hostPortGroups;
 	for (const Server& server : allServers)
 	{
 		Server* serverPtr = const_cast<Server*>(&server);
-		portGroups[server.port].push_back(serverPtr);
+		hostPortGroups[{server.host, server.port}].push_back(serverPtr);
 	}
 	servers.clear();
-	for (auto& [port, portServers] : portGroups)
+	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
-		combinedServer.port = port;
+		combinedServer.host = hostPort.first;
+		combinedServer.port = hostPort.second;
 		
 		for (Server* server : portServers)
 		{
