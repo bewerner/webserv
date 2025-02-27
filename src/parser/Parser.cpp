@@ -294,8 +294,8 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 		serverConfig.locations = locations;
 		if (serverConfig.server_name.empty())
 			serverConfig.server_name.push_back("localhost");
-		for (const auto& name : serverConfig.server_name)
-			newServer.conf[name] = serverConfig;
+		std::string primaryName = serverConfig.server_name[0];
+		newServer.conf[primaryName] = serverConfig;
 		servers.push_back(newServer);
 	}
 }
@@ -323,6 +323,30 @@ void validateConfigurations(const std::vector<Server>& servers) {
 	// ValidateLocations(servers);
 }
 
+void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
+{
+	std::map<uint16_t, std::vector<Server*>> portGroups;
+	for (const Server& server : allServers)
+	{
+		Server* serverPtr = const_cast<Server*>(&server);
+		portGroups[server.port].push_back(serverPtr);
+	}
+	servers.clear();
+	for (auto& [port, portServers] : portGroups)
+	{
+		Server combinedServer;
+		combinedServer.port = port;
+		
+		for (Server* server : portServers)
+		{
+			for (const auto& [name, config] : server->conf)
+				if (combinedServer.conf.find(name) == combinedServer.conf.end())
+					combinedServer.conf[name] = config;
+		}
+		servers.push_back(combinedServer);
+	}
+}
+
 void parser(std::vector<Server>& servers, std::string confPath)
 {
 	try 
@@ -339,13 +363,15 @@ void parser(std::vector<Server>& servers, std::string confPath)
 		std::regex serverPattern(R"(server\s*?\{[\s\S]*?\}\s*?(?=server\s*?\{|$))");
 		std::sregex_iterator it(content.begin(), content.end(), serverPattern);
 		std::sregex_iterator end;
-
+		std::vector<Server> allServers;
 		while (it != end)
 		{
 			std::string serverBlock = it->str();
 			try
 			{
-				extractMultiPortServerData(servers, serverBlock);
+				std::vector<Server> tempServers;
+				extractMultiPortServerData(tempServers, serverBlock);
+				allServers.insert(allServers.end(), tempServers.begin(), tempServers.end());
 			}
 			catch (const std::exception& e)
 			{
@@ -356,6 +382,7 @@ void parser(std::vector<Server>& servers, std::string confPath)
 			}
 			++it;
 		}
+		groupServersByPort(allServers, servers);
 		validateConfigurations(servers);
 		printData(servers);
 	}
