@@ -15,6 +15,8 @@ void	init_sockets(std::vector<Server>& servers)
 
 		if (bind(server.socket, (struct sockaddr*)& server.sockaddr, sizeof(sockaddr)) < 0)
 			throw std::runtime_error("Failed to bind to port " + std::to_string(server.port));
+		int opt = 1;
+		setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 		if (listen(server.socket, 1024) < 0)
 			throw std::runtime_error("Failed to listen on socket");
 		std::cout << "init port " << server.port << std::endl;
@@ -25,6 +27,7 @@ void sigint_handler(int signal)
 {
 	(void)signal;
 	std::cout << "exit" << std::endl;
+	// system("leaks webserv");
 	exit(0);
 }
 

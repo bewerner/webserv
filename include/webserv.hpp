@@ -19,7 +19,7 @@
 #include <list>
 #include <csignal>
 #include <filesystem>
-#include <unordered_set>
+#include <memory>
 
 
 #include <sys/socket.h>
@@ -36,7 +36,8 @@
 
 // typedef std::chrono::steady_clock::time_point time_point;
 // #define BUFFER_SIZE (size_t)1024*16
-#define BUFFER_SIZE (size_t)1024*64
+// #define BUFFER_SIZE (size_t)1024*64
+#define BUFFER_SIZE (size_t)1024*1024
 // #define BUFFER_SIZE (size_t)2999999
 // #define BUFFER_SIZE (size_t)1
 
@@ -64,9 +65,8 @@ struct Response
 	std::string			status_text;
 	std::string			body_path;
 	std::string			content_type = "application/octet-stream";
-	std::ifstream*		ifs_body = nullptr;
+	std::shared_ptr<std::ifstream>		ifs_body;
 	std::vector<char>	buffer;
-	~Response(void){delete ifs_body;}
 	void	set_body_path(int& status_code, const std::string& request_target);
 	void	set_content_type(void);
 	void	set_status_text(const int status_code);
@@ -105,7 +105,7 @@ struct LocationConfig
 	std::string								path;
 	std::string								root;
 	std::multimap<std::string, std::string>	directives;
-	std::set<std::string>					allow_methods;
+	std::set<std::string>					allow_methods; // set ist anlich wie vector aber erlaubt keine dublicate genau das was ich hier brauchte.
 	bool									autoindex;
 	std::string								index;
 	std::string								client_body_temp_path;
@@ -114,12 +114,12 @@ struct LocationConfig
 
 struct ServerConfig
 {
-	std::string								addr;
-	uint16_t								listen;
-	std::map<int, std::string>				error_page;
+	std::string								addr; // adresse
+	uint16_t								listen; // nicht wundern ich habe das an nginx angepasst... und da der port heist listen.
+	std::map<int, std::string>				error_page; // der int ist der error code der string der path zu den error page
 	size_t									client_max_body_size;
-	std::vector<std::string>				server_name;
-	std::map<std::string, LocationConfig>	locations;
+	std::vector<std::string>				server_name; //meehre name moglich als beispiel www.beny.com www.sören.com und www.aris.com alle gehoster port 443.. 
+	std::map<std::string, LocationConfig>	locations; // Enthält den URI-Pfad der Location daswegen map..
 };
 
 struct Server

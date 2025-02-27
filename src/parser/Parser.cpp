@@ -246,10 +246,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 				std::istringstream portStream(value);
 				std::string portStr;
 				while (portStream >> portStr)
-				{
 					ports.push_back(static_cast<uint16_t>(std::stoi(portStr)));
-					std::cout << "Added port: " << portStr << std::endl;
-				}
 			}
 			continue;
 		}
@@ -272,10 +269,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			try
 			{
 				if (!configLine.empty())
-				{
-					std::cout << "Parsing config line: " << configLine << std::endl;
 					saveServerConfig(serverConfig, configLine, port);
-				}
 			}
 			catch (const std::exception& e)
 			{
@@ -299,24 +293,10 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 		}
 		serverConfig.locations = locations;
 		if (serverConfig.server_name.empty())
-		{
-			std::cout << "No server_name specified for port " << port << std::endl;
 			serverConfig.server_name.push_back("localhost");
-			std::cout << "Using default server_name: localhost" << std::endl;
-		}
-		else
-		{
-			std::cout << "Final server names:" << std::endl;
-			for (const auto& name : serverConfig.server_name)
-				std::cout << "  - " << name << std::endl;
-		}
 		for (const auto& name : serverConfig.server_name)
-		{
 			newServer.conf[name] = serverConfig;
-			std::cout << "Added server config with name: " << name << std::endl;
-		}
 		servers.push_back(newServer);
-		std::cout << "Added server with port: " << port << std::endl;
 	}
 }
 
@@ -359,13 +339,9 @@ void parser(std::vector<Server>& servers, std::string confPath)
 		std::sregex_iterator it(content.begin(), content.end(), serverPattern);
 		std::sregex_iterator end;
 
-		std::cout << "Content after cleaning: " << content << std::endl;
-		std::cout << "Starting to parse server blocks..." << std::endl;
-
 		while (it != end)
 		{
 			std::string serverBlock = it->str();
-			std::cout << "Found server block: " << serverBlock << std::endl;
 			try
 			{
 				extractMultiPortServerData(servers, serverBlock);
