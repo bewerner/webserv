@@ -104,8 +104,7 @@ struct LocationConfig
 {
 	std::string								path;
 	std::string								root;
-	// std::multimap<std::string, std::string>	directives;
-	std::set<std::string>					allow_methods; // set ist anlich wie vector aber erlaubt keine dublicate genau das was ich hier brauchte.
+	std::set<std::string>					allow_methods;
 	bool									autoindex = false;
 	std::string								index;
 	std::string								client_body_temp_path;
@@ -116,20 +115,25 @@ struct LocationConfig
 struct ServerConfig
 {
 	std::string								host = "0.0.0.0";
-	uint16_t								port = 80; // nicht wundern ich habe das an nginx angepasst... und da der port heist listen.
+	uint16_t								port = 80;
 	std::string								root;
 	std::string								index;
-	std::map<int, std::string>				error_page; // der int ist der error code der string der path zu den error page
+	std::map<int, std::string>				error_page;
 	size_t									client_max_body_size = 0;
-	std::set<std::string>					server_name; //meehre name moglich als beispiel www.beny.com www.sören.com und www.aris.com alle gehoster port 443.. 
-	std::map<std::string, LocationConfig>	locations; // Enthält den URI-Pfad der Location daswegen map..
+	std::set<std::string>					server_name;
+	std::map<std::string, LocationConfig>	locations;
 };
 
 struct Server
 {
 	std::map<std::string, ServerConfig>		conf;
+	// nur eine kleine hilfe weil ich muste schauhen... ob das sinn macht die den host hier zu geben 
+	// es macht sinn und du kannst den host so zuweisen:
+	// in_addr_t addr = inet_addr(server.host.c_str());
+	// server.sockaddr.sin_addr.s_addr = addr;
+	// ich glaube <arpa/inet.h> muss includiert sein ich weiss nicht ob  <netinet/in.h> reicht.
 	std::string								host = "0.0.0.0";
-	uint16_t								port; // Port-Nummer für Socket-Operationen, redundant mit conf[name].listen
+	uint16_t								port;
 	std::list<Connection>					connections;
 	int										socket = -1;
 	sockaddr_in								sockaddr;
@@ -143,6 +147,7 @@ struct Server
 
 	~Server(void){if (socket != -1) close(socket);}
 };
+
 /************************************************/
 // src/parser/
 /************************************************/
@@ -161,7 +166,5 @@ void printData(const std::vector<Server>& servers);
 bool isValidLocationKey(const std::string& key);
 bool isValidServerKey(const std::string& key);
 void validateConfigurations(const std::vector<Server>& servers);
-
-
 
 /************************************************/
