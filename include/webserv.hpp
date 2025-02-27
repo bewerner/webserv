@@ -19,6 +19,8 @@
 #include <list>
 #include <csignal>
 #include <filesystem>
+#include <unordered_set>
+
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -100,44 +102,37 @@ struct Connection
 
 struct LocationConfig
 {
-	std::string					location_path;
-	std::string					redirect_url;
-	std::string					document_root;
-	bool						auto_index_enabled;
-	std::string					default_file;
-	std::string					upload_directory;
-	std::string					cgi_handler_extension;
-	std::vector<std::string>	allowed_methods;
-};
-struct ServerConfig
-{
-	std::string					server_address;
-	uint16_t					port;
-	std::map<int, std::string>	error_pages;
-	size_t						max_client_body_size;
-	std::vector<std::string>	server_names;
-	std::vector<LocationConfig>	location_blocks;
+	std::string								path;
+	std::string								root;
+	std::multimap<std::string, std::string>	directives;
+	std::set<std::string>					allow_methods;
+	bool									autoindex;
+	std::string								index;
+	std::string								client_body_temp_path;
+	std::string				 				fastcgi_param;
 };
 
-struct Location
+struct ServerConfig
 {
-	std::string path;
-	std::multimap<std::string, std::string> location_config;
+	std::string								addr;
+	uint16_t								listen;
+	std::map<int, std::string>				error_page;
+	size_t									client_max_body_size;
+	std::vector<std::string>				server_name;
+	std::map<std::string, LocationConfig>	locations;
 };
 
 struct Server
 {
-	std::multimap<std::string, std::string> config;
-	std::vector<Location>		locations;
-	std::list<Connection>	 	connections;
-	uint16_t					port;
-	int							socket = -1;
-	std::map<std::string, ServerConfig> servConf; // (Aris)neuer variable wo die server gespeichert werden. 
-	sockaddr_in					sockaddr;
-	std::chrono::seconds		request_timeout = std::chrono::seconds(10);
-	std::chrono::seconds		response_timeout = std::chrono::seconds(10);
+	std::map<std::string, ServerConfig>		conf;
+	uint16_t								port; // Port-Nummer für Socket-Operationen, redundant mit conf[name].listen
+	std::list<Connection>					connections;
+	int										socket = -1;
+	sockaddr_in								sockaddr;
+	std::chrono::seconds					request_timeout = std::chrono::seconds(10);
+	std::chrono::seconds					response_timeout = std::chrono::seconds(10);
 
-	short*						revents;
+	short*									revents;
 
 	void	accept_connection(void);
 	void	clean_connections(void);
@@ -147,6 +142,5 @@ struct Server
 
 // src/parser/parser.cpp
 void	parser(std::vector<Server>& data, std::string confPath);
-
 void	parse_request(Request& request, int& status_code);
 bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);

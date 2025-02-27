@@ -62,9 +62,9 @@ int	main(int argc, char** argv)
 	parser(servers, argc > 1 ? argv[1] : "webserver.conf");
 
 	//--------------temporary for testing--------------------------
-	servers[0].port = 8080;
-	servers[1].port = 8081;
-	servers[2].port = 8082;
+	// servers[0].port = 8080;
+	// servers[1].port = 8081;
+	// servers[2].port = 8082;
 	// servers[0].request_timeout = std::chrono::seconds(100);
 	// servers[1].request_timeout = std::chrono::seconds(100);
 	// servers[2].request_timeout = std::chrono::seconds(100);
