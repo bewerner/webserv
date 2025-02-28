@@ -29,24 +29,83 @@ bool isValidServerKey(const std::string& key)
 	return validKeys.find(key) != validKeys.end();
 }
 
-void validateConfigurations(const std::vector<Server>& servers) {
-	(void)servers;
-	// Locations Validate TODO
-	// ValidatePath(servers);
-	// ValidateRoot(servers);
-	// ValidateDirectives(servers);
-	// ValidateAllowMethos(servers);
-	// ValidateAutoIndex(servers);
-	// ValidateIndex(servers);
-	// ValidateClientBodyTempPath(servers);
-	// ValidateFastcgiParam(servers);
-	// ValidateLocationClientMaxBodySize(servers);
+bool validateHost(const std::vector<Server>& servers)
+{
+	bool isValidHost = true;
 
-	// Server Validate TODO
-	// ValidateAddr(servers);
-	// ValidateListe(servers);
-	// ValidateErrorPage(servers);
-	// ValidateClientMaxBodySize(servers);
-	// ValidateServerName(servers);
-	// ValidateLocations(servers);
+	for (const auto& server : servers)
+	{
+		for (const auto& [name, config] : server.conf)
+		{
+			if (config.host == "0.0.0.0" || config.host == "*")
+				continue;
+			struct sockaddr_in sa;
+			if (inet_pton(AF_INET, config.host.c_str(), &(sa.sin_addr)) != 0)
+				continue;
+			std::regex hostnameRegex("^[a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,61}[a-zA-Z0-9])?$");
+			if (std::regex_match(config.host, hostnameRegex))
+				continue;
+			std::cerr 
+			<< "Error: Invalid host in server '" << name << "': " << config.host << std::endl;
+			isValidHost = false;
+		}
+	}
+	return isValidHost;
+}
+
+bool validatePort(const std::vector<Server>& servers)
+{
+	bool isValidPort = true;
+
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		const auto& server = servers[i];
+		if (server.port < 1)
+		{
+			std::cerr << "Error: Invalid port in server: " 
+				<< server.port << std::endl;
+			isValidPort = false;
+		}
+		if (server.port < 1024 && getuid() != 0)
+		{
+			std::cerr 
+			<< "Error: Port " 
+			<< server.port 
+			<< "Ports below 1024 require root privileges, but the program is not running as root!"
+			<< std::endl;
+			isValidPort = false;
+		}
+	}
+	return isValidPort;
+}
+
+bool validateConfigurations(const std::vector<Server>& servers) 
+{
+	if (servers.empty())
+	{
+		std::cerr << "Error: No valid server configurations found" << std::endl;
+		return false;
+	}
+
+	bool isValid = true;
+
+	isValid = validateHost(servers) && isValid;
+	isValid = validatePort(servers) && isValid;
+	// isValid = validateRoot(servers) && isValid;
+	// isValid = validateIndex(servers) && isValid;
+	// isValid = validateErrorPage(servers) && isValid;
+	// isValid = validateClientMaxBodySize(servers) && isValid;
+	// isValid = validateServerName(servers) && isValid;
+	// isValid = validateLocations(servers) && isValid;
+
+	// isValid = validatePath(servers) && isValid;
+	// isValid = validateRoot(servers) && isValid;
+	// isValid = validateAllowMethods(servers) && isValid;
+	// isValid = validateAutoIndex(servers) && isValid;
+	// isValid = validateIndex(servers) && isValid;
+	// isValid = validateClientBodyTempPath(servers) && isValid;
+	// isValid = validateFastcgiParam(servers) && isValid;
+	// isValid = validateLocationClientMaxBodySize(servers) && isValid;
+
+	return isValid;
 }

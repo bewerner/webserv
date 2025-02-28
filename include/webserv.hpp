@@ -20,7 +20,7 @@
 #include <csignal>
 #include <filesystem>
 #include <memory>
-
+#include <arpa/inet.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -165,6 +165,6 @@ void printData(const std::vector<Server>& servers);
 //validation.cpp
 bool isValidLocationKey(const std::string& key);
 bool isValidServerKey(const std::string& key);
-void validateConfigurations(const std::vector<Server>& servers);
+bool validateConfigurations(const std::vector<Server>& servers);
 
 /************************************************/

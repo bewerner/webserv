@@ -212,12 +212,27 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 		Server combinedServer;
 		combinedServer.host = hostPort.first;
 		combinedServer.port = hostPort.second;
-		
+
+		std::set<std::string> seenNames;
+
 		for (Server* server : portServers)
 		{
 			for (const auto& [name, config] : server->conf)
-				if (combinedServer.conf.find(name) == combinedServer.conf.end())
+			{
+				if (seenNames.find(name) != seenNames.end())
+				{
+					std::cerr << "Warning: Server with name '" << name 
+								<< "' on IP " << combinedServer.host 
+								<< " and port " << combinedServer.port 
+								<< " is already defined. The first definition will be used." 
+								<< std::endl;
+				}
+				else
+				{
 					combinedServer.conf[name] = config;
+					seenNames.insert(name);
+				}
+			}
 		}
 		servers.push_back(combinedServer);
 	}
@@ -259,7 +274,11 @@ void parser(std::vector<Server>& servers, std::string confPath)
 			++it;
 		}
 		groupServersByPort(allServers, servers);
-		validateConfigurations(servers);
+		if (!validateConfigurations(servers))
+		{
+			servers.clear();
+			return;
+		}
 		printData(servers);
 	}
 	catch (const std::exception& e)
