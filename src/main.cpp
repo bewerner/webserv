@@ -1,5 +1,30 @@
 #include "webserv.hpp"
 
+in_addr	host_string_to_in_addr(const std::string& host)
+{
+	in_addr addr;
+	addrinfo hints{};
+	addrinfo* res = nullptr;
+
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if (getaddrinfo(host.c_str(), nullptr, &hints, &res) != 0)
+		throw std::runtime_error("Failed to resolve address");
+
+	addr = ((sockaddr_in*)res->ai_addr)->sin_addr;
+
+	freeaddrinfo(res);
+	return (addr);
+}
+
+void	init_sockaddr(Server& server)
+{
+	server.sockaddr.sin_addr = host_string_to_in_addr(server.host);
+	server.sockaddr.sin_family = AF_INET;
+	server.sockaddr.sin_port = htons(server.port);
+}
+
 void	init_sockets(std::vector<Server>& servers)
 {
 	for (Server& server : servers)
@@ -9,11 +34,9 @@ void	init_sockets(std::vector<Server>& servers)
 		if (server.socket < 0)
 			throw std::runtime_error("Failed to open socket");
 		fcntl(server.socket, F_SETFL, O_NONBLOCK);
-		server.sockaddr.sin_family = AF_INET;
-		server.sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-		server.sockaddr.sin_port = htons(server.port);
 
-		if (bind(server.socket, (struct sockaddr*)& server.sockaddr, sizeof(sockaddr)) < 0)
+		init_sockaddr(server);
+		if (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
 			throw std::runtime_error("Failed to bind to port " + std::to_string(server.port));
 		int opt = 1;
 		setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));

@@ -21,6 +21,8 @@
 #include <filesystem>
 #include <memory>
 #include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
