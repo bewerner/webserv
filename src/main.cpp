@@ -27,23 +27,44 @@ void	init_sockaddr(Server& server)
 
 void	init_sockets(std::vector<Server>& servers)
 {
+	// servers.push_back(servers[0]);
+	// servers.erase(servers.begin());
 	for (Server& server : servers)
 	{
-		//server.init_socket() // maybe put this in Server constructor?
 		server.socket = socket(PF_INET, SOCK_STREAM, 0);
 		if (server.socket < 0)
 			throw std::runtime_error("Failed to open socket");
+		int opt = 1;
+		if (setsockopt(server.socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
+			throw std::runtime_error("setsockopt failed");
 		fcntl(server.socket, F_SETFL, O_NONBLOCK);
 
 		init_sockaddr(server);
 		if (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
-			throw std::runtime_error("Failed to bind to port " + std::to_string(server.port));
-		int opt = 1;
-		setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+			throw std::runtime_error("Failed to bind to " + server.host + ':' + std::to_string(server.port) + ':' + std::string(strerror(errno)));
 		if (listen(server.socket, 1024) < 0)
 			throw std::runtime_error("Failed to listen on socket");
-		std::cout << "init port " << server.port << std::endl;
+		std::cout << "init " << server.host << ':' << server.port << std::endl;
 	}
+	// for (Server& server : servers)
+	// {
+	// 	if (server.socket != -1)
+	// 		continue;
+	// 	//server.init_socket() // maybe put this in Server constructor?
+	// 	server.socket = socket(PF_INET, SOCK_STREAM, 0);
+	// 	if (server.socket < 0)
+	// 		throw std::runtime_error("Failed to open socket");
+	// 	fcntl(server.socket, F_SETFL, O_NONBLOCK);
+
+	// 	init_sockaddr(server);
+	// 	if (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
+	// 		throw std::runtime_error("Failed to bind to " + server.host + ':' + std::to_string(server.port) + ':' + std::string(strerror(errno)));
+	// 	int opt = 1;
+	// 	setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	// 	if (listen(server.socket, 1024) < 0)
+	// 		throw std::runtime_error("Failed to listen on socket");
+	// 	std::cout << "init " << server.host << ':' << server.port << std::endl;
+	// }
 }
 
 void sigint_handler(int signal)
@@ -123,7 +144,7 @@ int	main(int argc, char** argv)
 
 		// debug
 		for (Server& server : servers)
-			std::cout << server.port << " has " << server.connections.size() << " connections | ";
+			std::cout << server.host << ':' << server.port << " has " << server.connections.size() << " connections | ";
 		std::cout << std::endl;
 	}
 	// catch (const std::exception& e)
