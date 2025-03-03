@@ -61,33 +61,42 @@ struct Request
 	size_t			content_length = 0;
 };
 
+struct ServerConfig;
+struct LocationConfig;
+
 struct Response
 {
-	std::string			header;
-	std::string			status_text;
-	std::string			body_path;
-	std::string			content_type = "application/octet-stream";
+	const ServerConfig*		config;
+	const LocationConfig*	location;
+	std::string				header;
+	std::string				status_text;
+	std::string				body_path;
+	std::string				content_type = "application/octet-stream";
+	std::vector<char>		buffer;
+	std::string 			connection;
+
+	std::string							directory_listing;
 	std::shared_ptr<std::ifstream>		ifs_body;
-	std::vector<char>	buffer;
+
 	void	set_body_path(int& status_code, const std::string& request_target);
 	void	set_content_type(void);
 	void	set_status_text(const int status_code);
 
-	std::string 		connection;
 };
 
 struct Server;
 
 struct Connection
 {
-	int				fd;
-	const Server*	server;
-	short			events = POLLIN;
-	bool			close = false;
-	int				status_code = 0;
+	int					fd;
+	const Server*		server;
+	const ServerConfig*	config;
+	short				events = POLLIN;
+	bool				close = false;
+	int					status_code = 0;
 
-	Request			request;
-	Response		response;
+	Request				request;
+	Response			response;
 
 	std::chrono::steady_clock::time_point	timeout;
 

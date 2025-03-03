@@ -105,13 +105,17 @@ void	Connection::respond(void)
 {
 	std::cout << "   Sending response ->" << std::endl;
 
-	if (!response.ifs_body)
+	if (!response.ifs_body && response.directory_listing.empty())
 	{
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 
 		if (!status_code)
 			status_code = 200;
 		response.connection = request.connection;
+
+		// find correct config (init connection.config)
+		// response.config = connection.config
+		// find correct location (init response.location)
 
 		response.set_body_path(status_code, request.request_target);
 		response.set_status_text(status_code);
