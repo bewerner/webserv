@@ -36,9 +36,11 @@ void printData(const std::vector<Server>& servers)
 	{
 		std::cout << std::endl;
 		std::cout << "Server " << serverNum++ << " (" << server.host << ":" << server.port << "):\n";
+		std::cout << "Default Server Name: " << (server.default_server_name.empty() ? "NAMELESS" : server.default_server_name) << "\n";
 		
 		for (const auto& [name, config] : server.conf)
 		{
+			std::cout << "Config Name: " << (name.empty() ? "NAMELESS" : name) << "\n";
 			std::cout << "Host: " << config.host << "\n";
 			std::cout << "Port: " << config.port << "\n";
 			if (!config.root.empty())
@@ -47,8 +49,11 @@ void printData(const std::vector<Server>& servers)
 				std::cout << "Index: " << config.index << "\n";
 			std::cout << "Max Client Body Size: " << config.client_max_body_size << "\n";
 			std::cout << "Server Name: ";
-			for (const auto& serverName : config.server_name)
-				std::cout << serverName << " ";
+			if (config.server_name.empty())
+				std::cout << "NONE";
+			else
+				for (const auto& serverName : config.server_name)
+					std::cout << serverName << " ";
 			std::cout << "\n";
 			std::cout << "Error Pages: \n";
 			for (const auto& [errorCode, errorPage] : config.error_page)
@@ -71,5 +76,25 @@ void printData(const std::vector<Server>& servers)
 			}
 			std::cout << "----------------------------------------\n";
 		}
+	}
+	
+	std::cout << "\n=== IP:PORT TO DEFAULT SERVER MAPPING ===\n";
+	for (const auto& server : servers)
+	{
+		std::string ipPort = server.host + ":" + std::to_string(server.port);
+		std::string defaultName = server.default_server_name.empty() ? "NAMELESS" : server.default_server_name;
+		
+		std::cout << std::left << std::setw(30) << ipPort 
+				  << " -> Default Server: " << defaultName << "\n";
+		std::cout << "   Available servers: ";
+		for (const auto& [name, _] : server.conf)
+		{
+			std::string displayName = name.empty() ? "NAMELESS" : name;
+			std::cout << displayName;
+			if (name == server.default_server_name)
+				std::cout << " (DEFAULT)";
+			std::cout << ", ";
+		}
+		std::cout << "\n\n";
 	}
 }

@@ -191,46 +191,71 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 	newServer.port = port;
 
 	processLocationConfigs(locationLines, serverConfig);
+
+	std::string serverKey;
 	if (serverConfig.server_name.empty())
-		serverConfig.server_name.insert("localhost");
-	std::string primaryName = *serverConfig.server_name.begin();
-	newServer.conf[primaryName] = serverConfig;
+		serverKey = "__NONAME__";
+	else
+		serverKey = *serverConfig.server_name.begin();
+	if (newServer.conf.empty())
+		newServer.default_server_name = serverKey;
+	newServer.conf[serverKey] = serverConfig;
 	servers.push_back(newServer);
 }
 
+
 void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
 {
-	std::map<std::pair<std::string, uint16_t>, std::vector<Server*>> hostPortGroups;
+	std::map<std::pair<std::string, uint16_t>, std::vector<const Server*>> hostPortGroups;
+
 	for (const Server& server : allServers)
-	{
-		Server* serverPtr = const_cast<Server*>(&server);
-		hostPortGroups[{server.host, server.port}].push_back(serverPtr);
-	}
+		hostPortGroups[{server.host, server.port}].push_back(&server);
+	
 	servers.clear();
+	
 	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
 		combinedServer.host = hostPort.first;
 		combinedServer.port = hostPort.second;
-
+		
 		std::set<std::string> seenNames;
-
-		for (Server* server : portServers)
+		bool firstServerHasName = false;
+		bool defaultSet = false;
+		
+		if (!portServers.empty() && !portServers[0]->conf.empty())
 		{
+			auto firstServerConf = portServers[0]->conf.begin();
+			firstServerHasName = !firstServerConf->first.empty();
+		}
+		for (size_t i = 0; i < portServers.size(); ++i)
+		{
+			const Server* server = portServers[i];
 			for (const auto& [name, config] : server->conf)
 			{
+				if (i > 0 && name.empty() && firstServerHasName)
+				{
+					std::cerr << "Warnung: Server ohne Namen auf IP " << combinedServer.host 
+							<< " und Port " << combinedServer.port 
+							<< " wird ignoriert, da bereits ein Server mit Namen definiert wurde." 
+							<< std::endl;
+					continue;
+				}
 				if (seenNames.find(name) != seenNames.end())
 				{
-					std::cerr << "Warning: Server with name '" << name 
-								<< "' on IP " << combinedServer.host 
-								<< " and port " << combinedServer.port 
-								<< " is already defined. The first definition will be used." 
-								<< std::endl;
+					std::cerr << "Warnung: Server mit Namen '" << (name.empty() ? "DEFAULT" : name)
+							<< "' auf IP " << combinedServer.host 
+							<< " und Port " << combinedServer.port 
+							<< " ist bereits definiert. Die erste Definition wird verwendet." 
+							<< std::endl;
+					continue;
 				}
-				else
+				combinedServer.conf[name] = config;
+				seenNames.insert(name);
+				if (!defaultSet)
 				{
-					combinedServer.conf[name] = config;
-					seenNames.insert(name);
+					combinedServer.default_server_name = name;
+					defaultSet = true;
 				}
 			}
 		}

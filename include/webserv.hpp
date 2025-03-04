@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include <map>
+#include <unordered_map>
 #include <regex>
 #include <set>
 #include <cstdint>
@@ -22,10 +23,10 @@
 #include <memory>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <netinet/in.h>
+// #include <netinet/in.h>
 
 #include <sys/socket.h>
-#include <netinet/in.h>
+// #include <netinet/in.h>
 #include <sys/errno.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -113,40 +114,41 @@ struct Connection
 
 struct LocationConfig
 {
-	std::string								path;
-	std::string								root;
-	std::set<std::string>					allow_methods;
-	bool									autoindex = false;
-	std::string								index;
-	std::string								client_body_temp_path;
-	std::string				 				fastcgi_param;
-	size_t									client_max_body_size = 0;
+	std::string										path;
+	std::string										root;
+	std::set<std::string>							allow_methods;
+	bool											autoindex = false;
+	std::string										index;
+	std::string										client_body_temp_path;
+	std::string										fastcgi_param;
+	size_t											client_max_body_size = 0;
 };
 
 struct ServerConfig
 {
-	std::string								host = "0.0.0.0";
-	uint16_t								port = 80;
-	std::string								root;
-	std::string								index;
-	std::map<int, std::string>				error_page;
-	size_t									client_max_body_size = 0;
-	std::set<std::string>					server_name;
-	std::map<std::string, LocationConfig>	locations;
+	std::string										host = "0.0.0.0";
+	uint16_t										port = 80;
+	std::string										root;
+	std::string										index;
+	std::map<int, std::string>						error_page;
+	size_t											client_max_body_size = 0;
+	std::set<std::string>							server_name;
+	std::map<std::string, LocationConfig>			locations;
 };
 
 struct Server
 {
-	std::map<std::string, ServerConfig>		conf;
-	std::string								host = "0.0.0.0";
-	uint16_t								port;
-	std::list<Connection>					connections;
-	int										socket = -1;
-	sockaddr_in								sockaddr;
-	std::chrono::seconds					request_timeout = std::chrono::seconds(10);
-	std::chrono::seconds					response_timeout = std::chrono::seconds(10);
+	std::unordered_map<std::string, ServerConfig>	conf;
+	std::string										default_server_name;
+	std::string										host = "0.0.0.0";
+	uint16_t										port;
+	std::list<Connection>							connections;
+	int												socket = -1;
+	sockaddr_in										sockaddr;
+	std::chrono::seconds							request_timeout = std::chrono::seconds(10);
+	std::chrono::seconds							response_timeout = std::chrono::seconds(10);
 
-	short*									revents;
+	short*											revents;
 
 	void	accept_connection(void);
 	void	clean_connections(void);
@@ -174,3 +176,5 @@ bool isValidServerKey(const std::string& key);
 bool validateConfigurations(const std::vector<Server>& servers);
 
 /************************************************/
+
+in_addr	host_string_to_in_addr(const std::string& host);
