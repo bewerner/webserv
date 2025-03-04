@@ -37,7 +37,8 @@ void	init_sockets(std::vector<Server>& servers)
 		int opt = 1;
 		if (setsockopt(server.socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
 			throw std::runtime_error("setsockopt failed");
-		fcntl(server.socket, F_SETFL, O_NONBLOCK);
+		if (fcntl(server.socket, F_SETFL, O_NONBLOCK) < 0)
+			throw std::runtime_error("fcntl failed");
 
 		init_sockaddr(server);
 		if (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
@@ -143,6 +144,7 @@ int	main(int argc, char** argv)
 		}
 
 		// debug
+		std::cout << "| ";
 		for (Server& server : servers)
 			std::cout << server.host << ':' << server.port << " has " << server.connections.size() << " connections | ";
 		std::cout << std::endl;

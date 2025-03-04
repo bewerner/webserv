@@ -138,11 +138,6 @@ struct ServerConfig
 struct Server
 {
 	std::map<std::string, ServerConfig>		conf;
-	// nur eine kleine hilfe weil ich muste schauhen... ob das sinn macht die den host hier zu geben 
-	// es macht sinn und du kannst den host so zuweisen:
-	// in_addr_t addr = inet_addr(server.host.c_str());
-	// server.sockaddr.sin_addr.s_addr = addr;
-	// ich glaube <arpa/inet.h> muss includiert sein ich weiss nicht ob  <netinet/in.h> reicht.
 	std::string								host = "0.0.0.0";
 	uint16_t								port;
 	std::list<Connection>					connections;

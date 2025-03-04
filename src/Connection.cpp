@@ -28,6 +28,24 @@ Connection::~Connection(void)
 	::close(fd);
 }
 
+static void	normalize_line_feed(std::vector<char>& buffer)
+{
+	// for (size_t i = 0; i < buffer.size(); i++)
+	// {
+	// 	if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r'))
+	// 		buffer.insert(buffer.begin() + i, '\r');
+	// 	if (i >= 3 && buffer[i] == '\n' && buffer[i - 1] == '\r' && buffer[i - 2] == '\n' && buffer[i - 3] == '\r')
+	// 		break ;
+	// }
+	for (size_t i = 1; i < buffer.size(); i++)
+	{
+		if (buffer[i] == '\n' && buffer[i - 1] == '\r')
+			buffer.erase(buffer.begin() + i - 1);
+		if (i >= 1 && buffer[i] == '\n' && buffer[i - 1] == '\n')
+			break ;
+	}
+}
+
 void	Connection::receive(void)
 {
 	std::cout  << "<- receiving request" << std::endl;
@@ -46,20 +64,21 @@ void	Connection::receive(void)
 
 	if (!request.header_received)
 	{
-		if (buffer.empty() || buffer.front() == '\xFF' || buffer.front() == '\x04')									// close without response (for example when pressing ctrl+c in telnet)
+		if (buffer.empty() || buffer.front() == '\xFF' || buffer.front() == '\x04')					// close without response (for example when pressing ctrl+c in telnet)
 		{
 			close = true;
 			return ;
 		}
 
+		normalize_line_feed(buffer);																// replaces "\r\n" with "\n"
 		request.header.append(buffer.begin(), buffer.end());
-		while (request.header.find("\r\n") == 0)													// ignore empty lines when expecting header firstline
+		while (request.header.find('\n') == 0)														// ignore empty lines when expecting header firstline
 		{
-			request.header.erase(0, 2);
-			buffer.erase(buffer.begin(), buffer.begin() + 2);
+			request.header.erase(request.header.begin());
+			buffer.erase(buffer.begin());
 		}
 
-		if (!request.startline_parsed && request.header.find("\r\n") != std::string::npos)			// startline received -> parse it
+		if (!request.startline_parsed && request.header.find('\n') != std::string::npos)			// startline received -> parse it
 		{
 			std::istringstream iss_header(request.header);
 			parse_start_line(request, iss_header, status_code);
@@ -67,12 +86,12 @@ void	Connection::receive(void)
 			if (status_code == 400 || status_code == 505)
 				request.received = true;
 		}
-		if (size_t found = request.header.find("\r\n\r\n"); found != std::string::npos)
+		if (size_t found = request.header.find("\n\n"); found != std::string::npos)
 		{
 			request.header_received = true;
 
-			size_t body_bytes = request.header.size() - (found + 4);								// how many bytes at the back of buffer belong to the body?
-			request.header.resize(found + 2);														// resize the header to end with \r\n
+			size_t body_bytes = request.header.size() - (found + 2);								// how many bytes at the back of buffer belong to the body?
+			request.header.resize(found + 1);														// resize the header to end with \n
 			buffer.erase(buffer.begin(), buffer.begin() + (buffer.size() - body_bytes));			// remove the header bytes from the buffer so only body bytes remain
 			parse_request(request, status_code);
 			request.received = true; // TEMP

@@ -15,7 +15,7 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	std::getline(iss_header, start_line);
 
 	// std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
-	std::regex	pattern(R"([A-Z]+ +\/\S* +HTTP\/\d+\.?\d{0,3} *\r?)");
+	std::regex	pattern(R"([A-Z]+ +\/\S* +HTTP\/\d+\.?\d{0,3} *)");
 	if (!std::regex_match(start_line, pattern))
 	{
 		std::cout << "------------------------------pattern mismatch" << std::endl;
@@ -105,9 +105,9 @@ void	parse_request(Request& request, int& status_code)
 	std::string	line;
 	while (std::getline(iss_header, line))
 	{
-		// std::regex	pattern(R"(\S+:\s*(\S+\s*)+\r)");
+		// std::regex	pattern(R"(\S+:\s*(\S+\s*)+)");
 		std::smatch match;
-		std::regex	pattern(R"((\S+):\s*(\S+).*\r)");
+		std::regex	pattern(R"((\S+):\s*(\S+).*)");
 		if (!std::regex_match(line, match, pattern))
 		{
 			std::cout << "------------------------------MISMATCH" << std::endl;
