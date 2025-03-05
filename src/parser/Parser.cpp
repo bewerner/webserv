@@ -22,6 +22,9 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 void saveLocationConfig(LocationConfig& location, const std::string& line, const std::string& path) {
 	location.path = path;
 
+	if (line.find(';') == std::string::npos)
+		throw std::runtime_error("Missing semicolon in configuration: " + line);
+
 	size_t sepPos = line.find(" ");
 	if (sepPos != std::string::npos)
 	{
@@ -56,6 +59,8 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 
 void saveServerConfig(ServerConfig& config, const std::string& line, std::string& sharedHost, uint16_t& sharedPort)
 {
+	if (line.find(';') == std::string::npos && line.find("location") != 0)
+		throw std::runtime_error("Missing semicolon in configuration: " + line);
 	size_t sepPos = line.find(" ");
 	if (sepPos != std::string::npos)
 	{
@@ -102,6 +107,7 @@ void extractServerBlockLines(const std::string& block, std::vector<std::string>&
 	std::istringstream stream(cleanBlock);
 	std::string line;
 	bool insideLocation = false;
+	bool expectLocationBrace = false;
 	std::string currentPath;
 
 	while (std::getline(stream, line))
@@ -111,26 +117,44 @@ void extractServerBlockLines(const std::string& block, std::vector<std::string>&
 			continue;
 		if (line.find("server") == 0 && line.find("server_name") != 0)
 			continue;
-		if (line.find("location") == 0)
+		if (expectLocationBrace && line == "{")
 		{
-			size_t pathStart = line.find_first_of(" ") + 1;
-			size_t pathEnd = line.find_first_of("{") - 1;
-			currentPath = removeSpaces(line.substr(pathStart, pathEnd - pathStart));
+			expectLocationBrace = false;
 			insideLocation = true;
 			continue;
 		}
+		if (line.find("location") == 0)
+		{
+			size_t pathStart = line.find_first_of(" ") + 1;
+			
+			size_t bracePos = line.find("{");
+			if (bracePos != std::string::npos)
+			{
+				size_t pathEnd = bracePos - 1;
+				currentPath = removeSpaces(line.substr(pathStart, pathEnd - pathStart));
+				insideLocation = true;
+			}
+			else
+			{
+				currentPath = removeSpaces(line.substr(pathStart));
+				expectLocationBrace = true;
+			}
+			continue;
+		}
+		
 		if (line == "}")
 		{
 			insideLocation = false;
+			expectLocationBrace = false;
 			continue;
 		}
+		
 		if (insideLocation)
 			locationLines.push_back({currentPath, line});
 		else
 			configLines.push_back(line);
 	}
 }
-
 void processServerConfig(const std::vector<std::string>& configLines, ServerConfig& serverConfig, std::string& host, uint16_t& port)
 {
 	for (const auto& configLine : configLines)
@@ -194,7 +218,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 
 	std::string serverKey;
 	if (serverConfig.server_name.empty())
-		serverKey = "__NONAME__";
+		serverKey = "(NONAME)" + host + ":" + std::to_string(port);
 	else
 		serverKey = *serverConfig.server_name.begin();
 	if (newServer.conf.empty())
