@@ -74,14 +74,15 @@ void saveServerConfig(ServerConfig& config, const std::string& line, std::string
 			parseListen(config, value, sharedHost, sharedPort);
 		else if (key == "server_name")
 		{
-			// Wir speichern nur einen einzelnen Namen, andere Namen werden separat verarbeitet
 			std::istringstream nameStream(value);
-			nameStream >> config.server_name; // Nur den ersten Namen speichern
+			nameStream >> config.server_name;
 		}
 		else if (key == "root")
 			config.root = value;
 		else if (key == "index")
 			config.index = value;
+		else if (key == "autoindex")
+			config.autoindex = (value == "on");
 		else if (key == "client_max_body_size")
 			config.client_max_body_size = std::stoull(value);
 		else if (key == "error_page")
@@ -192,9 +193,13 @@ void processLocationConfigs(const std::vector<std::pair<std::string, std::string
 	{
 		if (location.root.empty() && !serverConfig.root.empty())
 			location.root = serverConfig.root;
-		
 		if (location.index.empty() && !serverConfig.index.empty())
 			location.index = serverConfig.index;
+		if (location.client_max_body_size == 0 && serverConfig.client_max_body_size != 0)
+			location.client_max_body_size = serverConfig.client_max_body_size;
+		if (!location.autoindex && serverConfig.autoindex)
+			location.autoindex = true;
+		location.error_page = serverConfig.error_page;
 	}
 }
 

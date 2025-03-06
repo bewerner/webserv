@@ -58,6 +58,7 @@ void printData(const std::vector<Server>& servers)
 				std::cout << "Root: " << config.root << "\n";
 			if (!config.index.empty())
 				std::cout << "Index: " << config.index << "\n";
+			std::cout << "Auto Index: " << (config.autoindex ? "enabled" : "disabled") << "\n"; // Neu hinzugefügt
 			std::cout << "Max Client Body Size: " << config.client_max_body_size << "\n";
 			std::cout << "Server Name: ";
 			if (config.server_name.empty())
@@ -79,10 +80,14 @@ void printData(const std::vector<Server>& servers)
 				std::cout << "  Default File: " << loc.index << "\n";
 				std::cout << "  Upload Directory: " << loc.client_body_temp_path << "\n";
 				std::cout << "  CGI Handler Extension: " << loc.fastcgi_param << "\n";
+				std::cout << "  Max Client Body Size: " << loc.client_max_body_size << "\n"; // Neu hinzugefügt
 				std::cout << "  Allowed Methods: ";
 				for (const auto& method : loc.allow_methods)
 					std::cout << method << " ";
 				std::cout << "\n";
+				std::cout << "  Error Pages: \n"; // Neu hinzugefügt
+				for (const auto& [errorCode, errorPage] : loc.error_page)
+					std::cout << "    " << errorCode << ": " << errorPage << "\n";
 			}
 			std::cout << "----------------------------------------\n";
 		}

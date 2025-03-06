@@ -122,17 +122,19 @@ struct LocationConfig
 	std::string										client_body_temp_path;
 	std::string										fastcgi_param;
 	size_t											client_max_body_size = 0;
+	std::map<int, std::string>						error_page;
 };
 
 struct ServerConfig
 {
 	std::string										host = "0.0.0.0";
 	uint16_t										port = 80;
-	std::string										root;
+	std::string										root = std::filesystem::current_path().string() + "/html/";
 	std::string										index;
 	std::map<int, std::string>						error_page;
 	size_t											client_max_body_size = 0;
 	std::string										server_name;
+	bool											autoindex = false;
 	std::map<std::string, LocationConfig>			locations;
 };
 
