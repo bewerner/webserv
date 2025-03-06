@@ -173,23 +173,23 @@ void processServerConfig(const std::vector<std::string>& configLines, ServerConf
 
 void processLocationConfigs(const std::vector<std::pair<std::string, std::string>>& locationLines, ServerConfig& serverConfig)
 {
-	std::map<std::string, LocationConfig> locations;
+	std::map<std::string, LocationConfig> locationsMap;
 	for (const auto& [path, locLine] : locationLines)
 	{
-		if (locations.find(path) == locations.end())
-			locations[path] = LocationConfig();
+		if (locationsMap.find(path) == locationsMap.end())
+			locationsMap[path] = LocationConfig();
 		try
 		{
 			if (!locLine.empty())
-				saveLocationConfig(locations[path], locLine, path);
+				saveLocationConfig(locationsMap[path], locLine, path);
 		}
 		catch (const std::exception& e)
 		{
 			throw std::runtime_error("Error in location config: " + std::string(e.what()));
 		}
 	}
-	serverConfig.locations = locations;
-	for (auto& [path, location] : serverConfig.locations)
+	serverConfig.locations.clear();
+	for (auto& [path, location] : locationsMap)
 	{
 		if (location.root.empty() && !serverConfig.root.empty())
 			location.root = serverConfig.root;
@@ -200,6 +200,7 @@ void processLocationConfigs(const std::vector<std::pair<std::string, std::string
 		if (!location.autoindex && serverConfig.autoindex)
 			location.autoindex = true;
 		location.error_page = serverConfig.error_page;
+		serverConfig.locations.push_back(location);
 	}
 }
 
@@ -241,12 +242,8 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			}
 		}
 	}
-
 	if (listenDirectives.empty())
-	{
 		listenDirectives.push_back({"0.0.0.0", 80});
-	}
-
 	for (const auto& configLine : configLines)
 	{
 		if (configLine.find("server_name") == 0)
@@ -268,12 +265,8 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			}
 		}
 	}
-
 	if (!hasServerNames)
-	{
 		serverNames.push_back("");
-	}
-
 	for (const auto& configLine : configLines)
 	{
 		if (configLine.find("listen") != 0 && configLine.find("server_name") != 0)
@@ -292,9 +285,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			}
 		}
 	}
-
 	processLocationConfigs(locationLines, baseConfig);
-
 	for (const auto& [host, port] : listenDirectives)
 	{
 		for (size_t i = 0; i < serverNames.size(); ++i)
@@ -318,19 +309,30 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
 {
 	std::map<std::pair<std::string, uint16_t>, std::vector<const Server*>> hostPortGroups;
+	std::map<std::pair<std::string, uint16_t>, const Server*> firstServerPerHostPort;
 	for (const Server& server : allServers)
-		hostPortGroups[{server.host, server.port}].push_back(&server);
+	{
+		std::pair<std::string, uint16_t> hostPort = {server.host, server.port};
+		hostPortGroups[hostPort].push_back(&server);
+		
+		if (firstServerPerHostPort.find(hostPort) == firstServerPerHostPort.end())
+			firstServerPerHostPort[hostPort] = &server;
+	}
+
 	servers.clear();
+
 	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
 		combinedServer.host = hostPort.first;
 		combinedServer.port = hostPort.second;
 		std::vector<ServerConfig> allConfigs;
-		bool isFirstServer = true;
-		ServerConfig* firstConfig = nullptr;
+		const Server* firstServer = firstServerPerHostPort[hostPort];
+		for (const auto& config : firstServer->conf)
+			allConfigs.push_back(config);
 		for (const Server* server : portServers)
 		{
+			if (server == firstServer) continue;
 			for (const auto& config : server->conf)
 			{
 				bool configExists = false;
@@ -343,32 +345,7 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 					}
 				}
 				if (!configExists)
-				{
 					allConfigs.push_back(config);
-					if (isFirstServer)
-					{
-						firstConfig = &allConfigs.back();
-						isFirstServer = false;
-					}
-				}
-			}
-		}
-		if (!allConfigs.empty() && firstConfig != nullptr)
-		{
-			size_t firstIndex = 0;
-			for (size_t i = 0; i < allConfigs.size(); ++i)
-			{
-				if (allConfigs[i].server_name == firstConfig->server_name)
-				{
-					firstIndex = i;
-					break;
-				}
-			}
-			if (firstIndex != 0)
-			{
-				ServerConfig firstConfig = allConfigs[firstIndex];
-				allConfigs.erase(allConfigs.begin() + firstIndex);
-				allConfigs.insert(allConfigs.begin(), firstConfig);
 			}
 		}
 		combinedServer.conf = allConfigs;

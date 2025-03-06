@@ -135,7 +135,7 @@ struct ServerConfig
 	size_t											client_max_body_size = 0;
 	std::string										server_name;
 	bool											autoindex = false;
-	std::map<std::string, LocationConfig>			locations;
+	std::vector<LocationConfig>						locations;
 };
 
 struct Server
