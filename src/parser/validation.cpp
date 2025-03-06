@@ -24,7 +24,7 @@ bool isValidServerKey(const std::string& key)
 		"root",
 		"index",
 		"client_max_body_size",
-		"error_page"
+		"error_page",
 		"autoindex"
 	};
 	return validKeys.find(key) != validKeys.end();
