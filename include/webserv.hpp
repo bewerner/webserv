@@ -127,7 +127,8 @@ struct LocationConfig
 
 struct ServerConfig
 {
-	std::string										host = "0.0.0.0";
+	in_addr											host;
+	std::string										host_str;
 	uint16_t										port = 80;
 	std::string										root = std::filesystem::current_path().string() + "/html/";
 	std::string										index;
@@ -141,7 +142,8 @@ struct ServerConfig
 struct Server
 {
 	std::vector<ServerConfig>						conf;
-	std::string										host = "0.0.0.0";
+	in_addr											host;
+	std::string										host_str;
 	uint16_t										port;
 	std::list<Connection>							connections;
 	int												socket = -1;
@@ -175,6 +177,10 @@ void printData(const std::vector<Server>& servers);
 bool isValidLocationKey(const std::string& key);
 bool isValidServerKey(const std::string& key);
 bool validateConfigurations(const std::vector<Server>& servers);
+
+//init_sockets.cpp
+void init_sockaddr(Server& server);
+void init_sockets(std::vector<Server>& servers);
 
 /************************************************/
 

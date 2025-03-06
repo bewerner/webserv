@@ -1,5 +1,19 @@
 #include "webserv.hpp"
 
+in_addr	host_string_to_in_addr(const std::string& host)
+{
+	in_addr addr;
+	addrinfo hints{};
+	addrinfo* res = nullptr;
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	if (getaddrinfo(host.c_str(), nullptr, &hints, &res) != 0)
+		throw std::runtime_error("Failed to resolve address");
+	addr = ((sockaddr_in*)res->ai_addr)->sin_addr;
+	freeaddrinfo(res);
+	return (addr);
+}
+
 std::string removeSpaces(const std::string& str)
 {
 	const std::string whitespace = " \t\n\r\f\v";
@@ -35,24 +49,26 @@ void printData(const std::vector<Server>& servers)
 	for (const auto& server : servers)
 	{
 		std::cout << std::endl;
-		std::cout << "Server " << serverNum++ << " (" << server.host << ":" << server.port << "):\n";
+		std::string host_ip = inet_ntoa(server.host);
+		std::cout << "Server " << serverNum++ << " (" << host_ip << ":" << server.port << "):\n";
 		if (!server.conf.empty())
 		{
 			std::string defaultName = server.conf[0].server_name;
 			if (defaultName.empty())
-				defaultName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+				defaultName = "(NONAME)" + host_ip + ":" + std::to_string(server.port);
 			std::cout << "Default Server Name: " << defaultName << "\n";
 		}
 		else
 			std::cout << "Default Server Name: NAMELESS\n";
+		
 		for (const auto& config : server.conf)
 		{
 			std::string configName = config.server_name;
 			if (configName.empty())
-				configName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+				configName = "(NONAME)" + host_ip + ":" + std::to_string(server.port);
 				
 			std::cout << "Config Name: " << configName << "\n";
-			std::cout << "Host: " << config.host << "\n";
+			std::cout << "Host: " << inet_ntoa(config.host) << " (Original String: " << config.host_str << ")\n";
 			std::cout << "Port: " << config.port << "\n";
 			if (!config.root.empty())
 				std::cout << "Root: " << config.root << "\n";
@@ -95,13 +111,14 @@ void printData(const std::vector<Server>& servers)
 	std::cout << "\n=== IP:PORT TO DEFAULT SERVER MAPPING ===\n";
 	for (const auto& server : servers)
 	{
-		std::string ipPort = server.host + ":" + std::to_string(server.port);
+		std::string host_ip = inet_ntoa(server.host);
+		std::string ipPort = host_ip + ":" + std::to_string(server.port);
 		std::string defaultName = "NAMELESS";
 		if (!server.conf.empty())
 		{
 			defaultName = server.conf[0].server_name;
 			if (defaultName.empty())
-				defaultName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+				defaultName = "(NONAME)" + host_ip + ":" + std::to_string(server.port);
 		}
 		std::cout << std::left << std::setw(30) << ipPort 
 					<< " -> Default Server: " << defaultName << "\n";
@@ -113,7 +130,7 @@ void printData(const std::vector<Server>& servers)
 				std::cout << ", ";
 			std::string displayName = config.server_name;
 			if (displayName.empty())
-				displayName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+				displayName = "(NONAME)" + host_ip + ":" + std::to_string(server.port);
 			if (&config == &server.conf[0])
 				std::cout << displayName << " (DEFAULT)";
 			else

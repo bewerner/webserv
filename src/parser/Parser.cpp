@@ -12,8 +12,17 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 	}
 	else
 		portPart = value;
-
-	config.host = hostPart;
+	config.host_str = hostPart;
+	try
+	{
+		config.host = host_string_to_in_addr(hostPart);
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Warnung: Host '" << hostPart << "' konnte nicht aufgelöst werden. Verwende 0.0.0.0" << std::endl;
+		config.host.s_addr = INADDR_ANY;
+	}
+	
 	config.port = static_cast<uint16_t>(std::stoi(portPart));
 	sharedHost = hostPart;
 	sharedPort = config.port;
@@ -286,18 +295,36 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 		}
 	}
 	processLocationConfigs(locationLines, baseConfig);
-	for (const auto& [host, port] : listenDirectives)
+	for (const auto& [host_str, port] : listenDirectives)
 	{
 		for (size_t i = 0; i < serverNames.size(); ++i)
 		{
 			const std::string& name = serverNames[i];
 			
 			Server newServer;
-			newServer.host = host;
+			try
+			{
+				newServer.host = host_string_to_in_addr(host_str);
+			}
+			catch (const std::exception& e)
+			{
+				std::cerr << "Warnung: Host '" << host_str << "' konnte nicht aufgelöst werden. Verwende 0.0.0.0" << std::endl;
+				newServer.host.s_addr = INADDR_ANY;
+			}
+			newServer.host_str = host_str;
 			newServer.port = port;
 
 			ServerConfig serverConfig = baseConfig;
-			serverConfig.host = host;
+			try
+			{
+				serverConfig.host = host_string_to_in_addr(host_str);
+			}
+			catch (const std::exception& e)
+			{
+				std::cerr << "Warnung: Host '" << host_str << "' konnte nicht aufgelöst werden. Verwende 0.0.0.0" << std::endl;
+				serverConfig.host.s_addr = INADDR_ANY;
+			}
+			serverConfig.host_str = host_str;
 			serverConfig.port = port;
 			serverConfig.server_name = name;
 			newServer.conf.push_back(serverConfig);
@@ -308,11 +335,12 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 
 void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
 {
-	std::map<std::pair<std::string, uint16_t>, std::vector<const Server*>> hostPortGroups;
-	std::map<std::pair<std::string, uint16_t>, const Server*> firstServerPerHostPort;
+	std::map<std::pair<in_addr_t, uint16_t>, std::vector<const Server*>> hostPortGroups;
+	std::map<std::pair<in_addr_t, uint16_t>, const Server*> firstServerPerHostPort;
+	
 	for (const Server& server : allServers)
 	{
-		std::pair<std::string, uint16_t> hostPort = {server.host, server.port};
+		std::pair<in_addr_t, uint16_t> hostPort = {server.host.s_addr, server.port};
 		hostPortGroups[hostPort].push_back(&server);
 		
 		if (firstServerPerHostPort.find(hostPort) == firstServerPerHostPort.end())
@@ -324,12 +352,15 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
-		combinedServer.host = hostPort.first;
-		combinedServer.port = hostPort.second;
-		std::vector<ServerConfig> allConfigs;
 		const Server* firstServer = firstServerPerHostPort[hostPort];
+		combinedServer.host = firstServer->host;
+		combinedServer.host_str = firstServer->host_str;
+		combinedServer.port = hostPort.second;
+		
+		std::vector<ServerConfig> allConfigs;
 		for (const auto& config : firstServer->conf)
 			allConfigs.push_back(config);
+		
 		for (const Server* server : portServers)
 		{
 			if (server == firstServer) continue;
@@ -391,6 +422,16 @@ void parser(std::vector<Server>& servers, std::string confPath)
 		groupServersByPort(allServers, servers);
 		if (!validateConfigurations(servers))
 		{
+			servers.clear();
+			return;
+		}
+		try
+		{
+			init_sockets(servers);
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "Socket initialization error: " << e.what() << std::endl;
 			servers.clear();
 			return;
 		}

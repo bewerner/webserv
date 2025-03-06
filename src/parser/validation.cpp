@@ -38,22 +38,17 @@ bool validateHost(const std::vector<Server>& servers)
 	{
 		for (const auto& config : server.conf)
 		{
-			if (config.host == "0.0.0.0")
+			if (config.host.s_addr == INADDR_ANY)
 				continue;
-			try
-			{
-				host_string_to_in_addr(config.host);
-				continue;
-			}
-			catch (const std::runtime_error&)
+			if (config.host_str != "0.0.0.0" && config.host_str != "127.0.0.1" && config.host_str != "localhost")
 			{
 				std::regex hostnameRegex("^[a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,61}[a-zA-Z0-9])?$");
-				if (std::regex_match(config.host, hostnameRegex))
-					continue;
-					
-				std::cerr 
-					<< "Error: Invalid host in server '" << config.server_name << "': " << config.host << std::endl;
-				isValidHost = false;
+				if (!std::regex_match(config.host_str, hostnameRegex))
+				{
+					std::cerr 
+						<< "Warnung: Möglicherweise ungültiger Host in Server '" 
+						<< config.server_name << "': " << config.host_str << std::endl;
+				}
 			}
 		}
 	}
