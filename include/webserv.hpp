@@ -132,14 +132,13 @@ struct ServerConfig
 	std::string										index;
 	std::map<int, std::string>						error_page;
 	size_t											client_max_body_size = 0;
-	std::set<std::string>							server_name;
+	std::string										server_name;
 	std::map<std::string, LocationConfig>			locations;
 };
 
 struct Server
 {
-	std::unordered_map<std::string, ServerConfig>	conf;
-	std::string										default_server_name;
+	std::vector<ServerConfig>						conf;
 	std::string										host = "0.0.0.0";
 	uint16_t										port;
 	std::list<Connection>							connections;

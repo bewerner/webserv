@@ -74,10 +74,9 @@ void saveServerConfig(ServerConfig& config, const std::string& line, std::string
 			parseListen(config, value, sharedHost, sharedPort);
 		else if (key == "server_name")
 		{
+			// Wir speichern nur einen einzelnen Namen, andere Namen werden separat verarbeitet
 			std::istringstream nameStream(value);
-			std::string name;
-			while (nameStream >> name)
-				config.server_name.insert(name);
+			nameStream >> config.server_name; // Nur den ersten Namen speichern
 		}
 		else if (key == "root")
 			config.root = value;
@@ -205,84 +204,169 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 	std::vector<std::pair<std::string, std::string>> locationLines;
 	extractServerBlockLines(block, configLines, locationLines);
 
-	Server newServer;
-	ServerConfig serverConfig;
-	std::string host = "0.0.0.0";
-	uint16_t port = 80;
+	ServerConfig baseConfig;
+	std::vector<std::pair<std::string, uint16_t>> listenDirectives;
+	std::vector<std::string> serverNames;
+	bool hasServerNames = false;
 
-	processServerConfig(configLines, serverConfig, host, port);
-	newServer.host = host;
-	newServer.port = port;
+	for (const auto& configLine : configLines)
+	{
+		if (configLine.find("listen") == 0)
+		{
+			size_t sepPos = configLine.find(" ");
+			if (sepPos != std::string::npos)
+			{
+				std::string value = removeSpaces(configLine.substr(sepPos + 1));
+				if (value.back() == ';')
+					value.pop_back();
+				
+				std::string host = "0.0.0.0";
+				std::string portPart = "80";
+				size_t colonPos = value.find(':');
+				
+				if (colonPos != std::string::npos)
+				{
+					host = value.substr(0, colonPos);
+					portPart = value.substr(colonPos + 1);
+				}
+				else
+					portPart = value;
+				uint16_t port = static_cast<uint16_t>(std::stoi(portPart));
+				listenDirectives.push_back({host, port});
+			}
+		}
+	}
 
-	processLocationConfigs(locationLines, serverConfig);
+	if (listenDirectives.empty())
+	{
+		listenDirectives.push_back({"0.0.0.0", 80});
+	}
 
-	std::string serverKey;
-	if (serverConfig.server_name.empty())
-		serverKey = "(NONAME)" + host + ":" + std::to_string(port);
-	else
-		serverKey = *serverConfig.server_name.begin();
-	if (newServer.conf.empty())
-		newServer.default_server_name = serverKey;
-	newServer.conf[serverKey] = serverConfig;
-	servers.push_back(newServer);
+	for (const auto& configLine : configLines)
+	{
+		if (configLine.find("server_name") == 0)
+		{
+			size_t sepPos = configLine.find(" ");
+			if (sepPos != std::string::npos)
+			{
+				std::string value = removeSpaces(configLine.substr(sepPos + 1));
+				if (value.back() == ';')
+					value.pop_back();
+				
+				std::istringstream nameStream(value);
+				std::string name;
+				while (nameStream >> name)
+				{
+					serverNames.push_back(name);
+					hasServerNames = true;
+				}
+			}
+		}
+	}
+
+	if (!hasServerNames)
+	{
+		serverNames.push_back("");
+	}
+
+	for (const auto& configLine : configLines)
+	{
+		if (configLine.find("listen") != 0 && configLine.find("server_name") != 0)
+		{
+			try
+			{
+				std::string tempHost = "0.0.0.0";
+				uint16_t tempPort = 80;
+				
+				if (!configLine.empty())
+					saveServerConfig(baseConfig, configLine, tempHost, tempPort);
+			}
+			catch (const std::exception& e)
+			{
+				throw std::runtime_error("Error in server config: " + std::string(e.what()));
+			}
+		}
+	}
+
+	processLocationConfigs(locationLines, baseConfig);
+
+	for (const auto& [host, port] : listenDirectives)
+	{
+		for (size_t i = 0; i < serverNames.size(); ++i)
+		{
+			const std::string& name = serverNames[i];
+			
+			Server newServer;
+			newServer.host = host;
+			newServer.port = port;
+
+			ServerConfig serverConfig = baseConfig;
+			serverConfig.host = host;
+			serverConfig.port = port;
+			serverConfig.server_name = name;
+			newServer.conf.push_back(serverConfig);
+			servers.push_back(newServer);
+		}
+	}
 }
-
 
 void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
 {
 	std::map<std::pair<std::string, uint16_t>, std::vector<const Server*>> hostPortGroups;
-
 	for (const Server& server : allServers)
 		hostPortGroups[{server.host, server.port}].push_back(&server);
-	
 	servers.clear();
-	
 	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
 		combinedServer.host = hostPort.first;
 		combinedServer.port = hostPort.second;
-		
-		std::set<std::string> seenNames;
-		bool firstServerHasName = false;
-		bool defaultSet = false;
-		
-		if (!portServers.empty() && !portServers[0]->conf.empty())
+		std::vector<ServerConfig> allConfigs;
+		bool isFirstServer = true;
+		ServerConfig* firstConfig = nullptr;
+		for (const Server* server : portServers)
 		{
-			auto firstServerConf = portServers[0]->conf.begin();
-			firstServerHasName = !firstServerConf->first.empty();
-		}
-		for (size_t i = 0; i < portServers.size(); ++i)
-		{
-			const Server* server = portServers[i];
-			for (const auto& [name, config] : server->conf)
+			for (const auto& config : server->conf)
 			{
-				if (i > 0 && name.empty() && firstServerHasName)
+				bool configExists = false;
+				for (const auto& existingConfig : allConfigs)
 				{
-					std::cerr << "Warnung: Server ohne Namen auf IP " << combinedServer.host 
-							<< " und Port " << combinedServer.port 
-							<< " wird ignoriert, da bereits ein Server mit Namen definiert wurde." 
-							<< std::endl;
-					continue;
+					if (existingConfig.server_name == config.server_name)
+					{
+						configExists = true;
+						break;
+					}
 				}
-				if (seenNames.find(name) != seenNames.end())
+				if (!configExists)
 				{
-					std::cerr << "Warnung: Server mit Namen '" << (name.empty() ? "DEFAULT" : name)
-							<< "' auf IP " << combinedServer.host 
-							<< " und Port " << combinedServer.port 
-							<< " ist bereits definiert. Die erste Definition wird verwendet." 
-							<< std::endl;
-					continue;
-				}
-				combinedServer.conf[name] = config;
-				seenNames.insert(name);
-				if (!defaultSet)
-				{
-					combinedServer.default_server_name = name;
-					defaultSet = true;
+					allConfigs.push_back(config);
+					if (isFirstServer)
+					{
+						firstConfig = &allConfigs.back();
+						isFirstServer = false;
+					}
 				}
 			}
 		}
+		if (!allConfigs.empty() && firstConfig != nullptr)
+		{
+			size_t firstIndex = 0;
+			for (size_t i = 0; i < allConfigs.size(); ++i)
+			{
+				if (allConfigs[i].server_name == firstConfig->server_name)
+				{
+					firstIndex = i;
+					break;
+				}
+			}
+			if (firstIndex != 0)
+			{
+				ServerConfig firstConfig = allConfigs[firstIndex];
+				allConfigs.erase(allConfigs.begin() + firstIndex);
+				allConfigs.insert(allConfigs.begin(), firstConfig);
+			}
+		}
+		combinedServer.conf = allConfigs;
 		servers.push_back(combinedServer);
 	}
 }

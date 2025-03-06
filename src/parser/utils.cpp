@@ -36,11 +36,22 @@ void printData(const std::vector<Server>& servers)
 	{
 		std::cout << std::endl;
 		std::cout << "Server " << serverNum++ << " (" << server.host << ":" << server.port << "):\n";
-		std::cout << "Default Server Name: " << (server.default_server_name.empty() ? "NAMELESS" : server.default_server_name) << "\n";
-		
-		for (const auto& [name, config] : server.conf)
+		if (!server.conf.empty())
 		{
-			std::cout << "Config Name: " << (name.empty() ? "NAMELESS" : name) << "\n";
+			std::string defaultName = server.conf[0].server_name;
+			if (defaultName.empty())
+				defaultName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+			std::cout << "Default Server Name: " << defaultName << "\n";
+		}
+		else
+			std::cout << "Default Server Name: NAMELESS\n";
+		for (const auto& config : server.conf)
+		{
+			std::string configName = config.server_name;
+			if (configName.empty())
+				configName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+				
+			std::cout << "Config Name: " << configName << "\n";
 			std::cout << "Host: " << config.host << "\n";
 			std::cout << "Port: " << config.port << "\n";
 			if (!config.root.empty())
@@ -52,8 +63,7 @@ void printData(const std::vector<Server>& servers)
 			if (config.server_name.empty())
 				std::cout << "NONE";
 			else
-				for (const auto& serverName : config.server_name)
-					std::cout << serverName << " ";
+				std::cout << config.server_name << " ";
 			std::cout << "\n";
 			std::cout << "Error Pages: \n";
 			for (const auto& [errorCode, errorPage] : config.error_page)
@@ -77,24 +87,36 @@ void printData(const std::vector<Server>& servers)
 			std::cout << "----------------------------------------\n";
 		}
 	}
-	
 	std::cout << "\n=== IP:PORT TO DEFAULT SERVER MAPPING ===\n";
 	for (const auto& server : servers)
 	{
 		std::string ipPort = server.host + ":" + std::to_string(server.port);
-		std::string defaultName = server.default_server_name.empty() ? "NAMELESS" : server.default_server_name;
-		
-		std::cout << std::left << std::setw(30) << ipPort 
-				  << " -> Default Server: " << defaultName << "\n";
-		std::cout << "   Available servers: ";
-		for (const auto& [name, _] : server.conf)
+		std::string defaultName = "NAMELESS";
+		if (!server.conf.empty())
 		{
-			std::string displayName = name.empty() ? "NAMELESS" : name;
-			std::cout << displayName;
-			if (name == server.default_server_name)
-				std::cout << " (DEFAULT)";
-			std::cout << ", ";
+			defaultName = server.conf[0].server_name;
+			if (defaultName.empty())
+				defaultName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
 		}
-		std::cout << "\n\n";
+		std::cout << std::left << std::setw(30) << ipPort 
+					<< " -> Default Server: " << defaultName << "\n";
+		std::cout << "   Available servers: ";
+		bool firstPrinted = false;
+		for (const auto& config : server.conf)
+		{
+			if (firstPrinted)
+				std::cout << ", ";
+			std::string displayName = config.server_name;
+			if (displayName.empty())
+				displayName = "(NONAME)" + server.host + ":" + std::to_string(server.port);
+			if (&config == &server.conf[0])
+				std::cout << displayName << " (DEFAULT)";
+			else
+				std::cout << displayName;
+				
+			firstPrinted = true;
+		}
+		
+		std::cout << ", \n\n";
 	}
 }

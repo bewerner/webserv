@@ -35,7 +35,7 @@ bool validateHost(const std::vector<Server>& servers)
 
 	for (const auto& server : servers)
 	{
-		for (const auto& [name, config] : server.conf)
+		for (const auto& config : server.conf)
 		{
 			if (config.host == "0.0.0.0")
 				continue;
@@ -51,7 +51,7 @@ bool validateHost(const std::vector<Server>& servers)
 					continue;
 					
 				std::cerr 
-					<< "Error: Invalid host in server '" << name << "': " << config.host << std::endl;
+					<< "Error: Invalid host in server '" << config.server_name << "': " << config.host << std::endl;
 				isValidHost = false;
 			}
 		}
@@ -77,7 +77,7 @@ bool validatePort(const std::vector<Server>& servers)
 			std::cerr 
 			<< "Error: Port " 
 			<< server.port 
-			<< "Ports below 1024 require root privileges, but the program is not running as root!"
+			<< " Ports below 1024 require root privileges, but the program is not running as root!"
 			<< std::endl;
 			isValidPort = false;
 		}
