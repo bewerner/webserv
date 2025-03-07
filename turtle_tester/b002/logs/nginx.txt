@@ -1,0 +1,3 @@
+2025/03/07 22:13:11 [error] 42555#0: *1 "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/test/index.html/" is not found (20: Not a directory), client: 127.0.0.1, server: testtt, request: "GET /test/ HTTP/1.1", host: "a"
+127.0.0.1 - - [07/Mar/2025:22:13:11 +0100] "GET /test/ HTTP/1.1" 404 153 "-" "-"
+127.0.0.1 - - [07/Mar/2025:22:13:11 +0100] "" 400 0 "-" "-"
