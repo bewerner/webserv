@@ -21,7 +21,6 @@ Connection::Connection(Server* server) : server(server)
 	timeout = std::chrono::steady_clock::now() + server->request_timeout;
 }
 
-
 Connection::~Connection(void)
 {
 	std::cout << "X  close connection" << " with fd " << fd << std::endl;
@@ -44,6 +43,23 @@ static void	normalize_line_feed(std::vector<char>& buffer)
 		if (i >= 1 && buffer[i] == '\n' && buffer[i - 1] == '\n')
 			break ;
 	}
+}
+
+void	Connection::set_config(void)
+{
+	for (const auto& server_config : server->conf)
+	{
+		if (server_config.server_name == request.host)
+		{
+			std::cout << "server config: " << server_config.server_name
+				<< " | host is matching" << std::endl;
+			config = &(server_config);
+			return ;
+		}
+	}
+	std::cout << "server config: " << server->conf[0].server_name
+		<< " | default" << std::endl;
+	config = &(server->conf[0]);
 }
 
 void	Connection::receive(void)
@@ -132,9 +148,9 @@ void	Connection::respond(void)
 			status_code = 200;
 		response.connection = request.connection;
 
-		// find correct config (init connection.config)
-		// response.config = connection.config
-		// find correct location (init response.location)
+		set_config();
+		response.config = config;
+		response.set_location(request.request_target);
 
 		response.set_body_path(status_code, request.request_target);
 		response.set_status_text(status_code);

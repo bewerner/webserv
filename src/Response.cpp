@@ -1,5 +1,24 @@
 #include "webserv.hpp"
 
+void	Response::set_location(const std::string& request_target)
+{
+	size_t	pos = 0;
+	for (const auto& location_config : config->locations)
+	{
+		if (request_target.find(location_config.path) != std::string::npos)
+		{
+			if (location_config.path.size() > pos)
+			{
+				pos = location_config.path.size();
+				location = &(location_config);
+			}
+		}
+	}
+	std::cout << "location config: \"" << location->path << "\"" << std::endl;
+	if (pos == 0)
+		location = nullptr;
+}
+
 void	Response::set_body_path(int& status_code, const std::string& request_target)
 {
 	if (status_code >= 400)
@@ -92,6 +111,7 @@ void	Response::set_status_text(const int status_code)
 
 	status_text = status_map.at(status_code);
 }
+
 void	Response::set_content_type(void)
 {
 	static const std::map<std::string, std::string> type_map =

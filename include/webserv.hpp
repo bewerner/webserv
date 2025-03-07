@@ -67,8 +67,8 @@ struct LocationConfig;
 
 struct Response
 {
-	const ServerConfig*		config;
-	const LocationConfig*	location;
+	const ServerConfig*		config = nullptr;
+	const LocationConfig*	location = nullptr;
 	std::string				header;
 	std::string				status_text;
 	std::string				body_path;
@@ -79,6 +79,7 @@ struct Response
 	std::string							directory_listing;
 	std::shared_ptr<std::ifstream>		ifs_body;
 
+	void	set_location(const std::string& request_target);
 	void	set_body_path(int& status_code, const std::string& request_target);
 	void	set_content_type(void);
 	void	set_status_text(const int status_code);
@@ -90,8 +91,8 @@ struct Server;
 struct Connection
 {
 	int					fd;
-	const Server*		server;
-	const ServerConfig*	config;
+	const Server*		server = nullptr;
+	const ServerConfig*	config = nullptr;
 	short				events = POLLIN;
 	bool				close = false;
 	int					status_code = 0;
@@ -108,6 +109,7 @@ struct Connection
 	Connection(Server* server);
 	~Connection(void);
 
+	void	set_config(void);
 	void	receive(void);
 	void	respond(void);
 };
