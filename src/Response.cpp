@@ -1,25 +1,166 @@
 #include "webserv.hpp"
 
-void	Response::set_body_path(int& status_code, const std::string& request_target)
-{
-	if (status_code >= 400)
-		body_path = "html/error/" + std::to_string(status_code) + ".html";
-	else if (request_target.find('.') != std::string::npos)
-		body_path = "html" + request_target;
-	else
-		body_path = "html/index.html";
+// nginx checks if request_target.back is '/'.
+// if it is not, then it will check if it is a directory.
+// if it is a directory, it will send 301 moved permanently
+// Location: http://<request.host>:<server.port>/<request_target>/
+// the '/' at the end indicating that it is a directory, not a file
 
-	if (!std::filesystem::exists(body_path))
+void	Response::set_config(const std::string& host, const Server& server)
+{
+	config = &(server.conf.begin()->second);
+	for (const std::pair<const std::string, ServerConfig>& p : server.conf)
 	{
-		status_code = 404;
-		body_path = "html/error/404.html";
+		for (const std::string& s : p.second.server_name)
+		{
+			if (s == host)
+			{
+				config = &p.second;
+				return ;
+			}
+		}
 	}
-	std::ifstream file(body_path);
-	if (!file)
+}
+
+void	Response::set_body_path(int& status_code, std::string& request_target, const Request& request, const Connection& connection)
+{
+	if (status_code >= 300)
 	{
-		status_code = 403;
-		body_path = "html/error/403.html";
+		auto it = config->error_page.find(status_code);
+		if (it != config->error_page.end())
+			request_target = it->second;
+		else
+			return ;
 	}
+	body_path = location_config->root + request_target;
+	// if body_path[0] != '/'
+	// 		body_path = PWD + body_path;
+
+
+
+
+
+
+
+	bool directory_request = (request_target.back() == '/');
+	std::cout << "-----------------------------------------------------------------------" << directory_request << std::endl;
+	
+	std::cout << "XXXXXXXXXXXX body path: " << body_path << std::endl;
+
+	if (!directory_request && std::filesystem::is_directory(body_path))
+	{
+		status_code = 301;
+		location = "http://" + request.host + ':' + std::to_string(connection.server->port) + request_target + '/';
+		std::cout << "XXXXXXXXXXXX setting location: " << location << std::endl;
+		return ;
+	}
+
+
+
+	if (directory_request)
+	{
+		if (std::filesystem::exists(body_path + location_config->index))
+		{
+			body_path += location_config->index;
+			// 302
+			directory_request = (body_path.back() == '/');
+			std::cout << "--------------------------------------------a" << std::endl;
+		}
+		else if (location_config->autoindex)
+		{
+			directory_listing = true;
+			std::cout << "--------------------------------------------b" << std::endl;
+		}
+		else
+		{
+			status_code = 404;
+			std::cout << "--------------------------------------------c" << std::endl;
+		}
+	}
+
+
+
+	// if (directory_request && std::filesystem::exists(body_path + location_config->index))
+	// {
+	// 	body_path += location_config->index;
+	// 	bool directory_request = (body_path.back() == '/');
+	// }
+
+	// if (!std::filesystem::exists(body_path))
+	// {
+	// 	if (directory_request)
+	// 	{
+	// 		if (location_config->autoindex)
+	// 			directory_listing = true;
+	// 		else
+	// 			status_code = 403; // directory index of <body_path> is forbidden
+	// 		return ;
+	// 	}
+	// 	status_code = 404;
+	// }
+
+
+
+
+	// std::ifstream file(body_path);
+	// if (!file)
+	// 	status_code = 403;
+	if (!directory_request)
+	{
+		ifs_body = std::make_shared<std::ifstream>(body_path, std::ios::binary);
+		if (!ifs_body->is_open())
+		{
+			status_code = 404;
+			ifs_body.reset();
+		}
+		// if (ifs_body->fail())
+		// {
+		// 	status_code = 403;
+		// 	ifs_body.reset();
+		// }
+	}
+}
+
+void	Response::generate_directory_listing(const Request& request, const uint16_t port)
+{
+	str_body = "<html><head><meta charset=\"UTF-8\"><title>directory_listing_placeholder directory_listing_placeholder</title></head><body><center><h1>directory_listing_placeholder directory_listing_placeholder</h1></center><hr><center>🐢webserv🐢</center></body></html>\n";
+	
+	// std::string dir = body_path;
+	std::ostringstream oss_body;
+	oss_body	<< "<html><head>" << '\n'
+	<< "<meta http-equiv=\"content-type\" content=\"text/html; charset=windows-1252\"><title>Index of /</title></head>" << '\n'
+	<< "<body>" << '\n'
+	<< "<h1>Index of /</h1><hr><pre><a href=\"http://" << request.host << ':' << port << "/\">../</a>" << '\n';
+
+	for (const auto& i : std::filesystem::directory_iterator(body_path))
+	{
+		if (!i.is_directory())
+			continue;
+		std::string filename = i.path().filename().string() + '/';
+		std::string filesize = "-";
+		oss_body	<< "<a href=\"http://" << request.host << '/' << filename << "\">" << filename << "</a>" << "    " << filesize << '\n';
+	}
+	for (const auto& i : std::filesystem::directory_iterator(body_path))
+	{
+		if (i.is_directory())
+			continue;
+		std::string filename = i.path().filename().string();
+		std::string filesize = std::to_string(i.file_size());
+		oss_body	<< "<a href=\"http://" << request.host << '/' << filename << "\">" << filename << "</a>" << "    " << filesize << '\n';
+	}
+
+	oss_body	<< "</pre><hr>\n\n</body></html>";
+	
+	str_body = oss_body.str();
+	content_length = std::to_string(str_body.length());
+}
+
+void	Response::generate_error_page(const int status_code)
+{
+	// static const std::string error_page_template = 
+	str_body = "<html><head><meta charset=\"UTF-8\"><title>" + std::to_string(status_code) + " " + status_text + "</title></head><body><center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center><hr><center>🐢webserv🐢</center></body></html>\n";
+	std::cout << str_body << std::endl;
+	content_length = std::to_string(str_body.length());
 }
 
 void	Response::set_status_text(const int status_code)
@@ -78,6 +219,7 @@ void	Response::set_status_text(const int status_code)
 		{429, "Too Many Requests"},
 		{431, "Request Header Fields Too Large"},
 		{451, "Unavailable For Legal Reasons"},
+		{500, "Internal Server Error"},
 		{501, "Not Implemented"},
 		{502, "Bad Gateway"},
 		{503, "Service Unavailable"},
@@ -151,7 +293,9 @@ void	Response::set_content_type(void)
 	};
 
 	std::smatch match;
-	if (std::regex_match(body_path, match, std::regex(R"(.*\.(\w*))")))
+	if (!ifs_body)
+		content_type = "text/html";
+	else if (std::regex_match(body_path, match, std::regex(R"(.*\.(\w*))")))
 	{
 		std::string file_extension = match[1];
 		auto it = type_map.find(file_extension);

@@ -4,3 +4,6 @@ obj
 *test*
 webserv
 no_read.html
+
+!turtle_tester
+!turtle_tester/**/*

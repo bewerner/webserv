@@ -30,13 +30,6 @@ Connection::~Connection(void)
 
 static void	normalize_line_feed(std::vector<char>& buffer)
 {
-	// for (size_t i = 0; i < buffer.size(); i++)
-	// {
-	// 	if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r'))
-	// 		buffer.insert(buffer.begin() + i, '\r');
-	// 	if (i >= 3 && buffer[i] == '\n' && buffer[i - 1] == '\r' && buffer[i - 2] == '\n' && buffer[i - 3] == '\r')
-	// 		break ;
-	// }
 	for (size_t i = 1; i < buffer.size(); i++)
 	{
 		if (buffer[i] == '\n' && buffer[i - 1] == '\r')
@@ -61,6 +54,14 @@ void	Connection::receive(void)
 		// error check
 		buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);						// append received bytes to buffer
 	}
+
+	// // debug
+	// std::cout << std::endl;
+	// std::cout << std::endl;
+	// for (char c : buffer)
+	// 	std::cout << c;
+	// std::cout << std::endl;
+	// std::cout << std::endl;
 
 	if (!request.header_received)
 	{
@@ -101,7 +102,7 @@ void	Connection::receive(void)
 	}
 	// else
 	// {
-	// 	//write body
+	// 	//receive body
 	// }
 
 	if (request.received)
@@ -124,48 +125,84 @@ void	Connection::respond(void)
 {
 	std::cout << "   Sending response ->" << std::endl;
 
-	if (!response.ifs_body && response.directory_listing.empty())
+	if (response.header.empty())
 	{
+
+		if (status_code >= 300)
+			response.connection = "close";
+
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 
 		if (!status_code)
-			status_code = 200;
+		status_code = 200;
 		response.connection = request.connection;
-
+		
 		// find correct config (init connection.config)
 		// response.config = connection.config
-		// find correct location (init response.location)
+		// find correct location (init response.location_config)
 
-		response.set_body_path(status_code, request.request_target);
+		response.set_config(request.host, *server);
+
+		response.location_config = &(response.config->locations.begin()->second); //TEMP
+		// response.location_config->autoindex = true; //TEMP
+
+		// response.set_location_config(request.host, *server);
+		// response.set_location_config(request.host);
+		// response.expand_request_target(status_code, request.request_target);
+
+		int tmp = status_code;
+		response.set_body_path(status_code, request.request_target, request, *this);
+		if (!response.ifs_body && !response.directory_listing && status_code != tmp)
+			response.set_body_path(status_code, request.request_target, request, *this);
+		
+		// if (status_code < 300)
+		// 	response.set_body_path(status_code, request.request_target, request, *this);
+		// if (status_code >= 300)
+		// 	response.set_body_path(status_code, request.request_target, request, *this);
+		
 		response.set_status_text(status_code);
 		response.set_content_type();
 
-		if (status_code >= 400)
-			response.connection = "close";
-
-		response.ifs_body = std::make_shared<std::ifstream>(response.body_path, std::ios::binary);
-		if (!response.ifs_body || !response.ifs_body->is_open())
+		if (response.ifs_body)
 		{
-			close = true;
-			return ;
+			// response.ifs_body = std::make_shared<std::ifstream>(response.body_path, std::ios::binary);
+			if (!response.ifs_body || !response.ifs_body->is_open())
+			{
+				std::cout << "THIS SHOULD NEVER HAPPEN" << std::endl;
+				close = true;
+				return ;
+			}
+			std::cout << "XXXXXXXXXX" << std::endl;
+			response.content_length = std::to_string(std::filesystem::file_size(response.body_path));
+			std::cout << "XXXXXXXXXX" << std::endl;
 		}
-		uintmax_t size = std::filesystem::file_size(response.body_path);
-
+		else
+		{
+			if (response.directory_listing)
+				response.generate_directory_listing(request, server->port);
+			else
+				response.generate_error_page(status_code);
+			buffer.insert(buffer.begin(), response.str_body.begin(), response.str_body.end());
+		}
+			
 		std::ostringstream header;
-		header	<< "HTTP/1.1 " << status_code << ' ' << response.status_text << "\r\n"
-				<< "Content-Type: " << response.content_type << "\r\n"
-				<< "Content-Length: " << size << "\r\n"
-				<< "Connection: " << response.connection << "\r\n\r\n";
+		header	<< "HTTP/1.1 "			<< status_code << ' ' << response.status_text	<< "\r\n"
+				<< "Content-Type: "		<< response.content_type						<< "\r\n"
+				<< "Content-Length: "	<< response.content_length						<< "\r\n"
+				<< "Connection: "		<< response.connection							<< "\r\n";
+		if (!response.location.empty())
+			header << "Location: "		<< response.location							<< "\r\n";
+		header << "\r\n";
 		response.header = header.str();
-		buffer.insert(buffer.end(), response.header.begin(), response.header.end());
-
-			// debug
-			std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
-						<< header.str()
-						<< "------------------------------------------------------\n\n\n" << std::endl;
+		buffer.insert(buffer.begin(), response.header.begin(), response.header.end());
+		
+		// debug
+		std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
+					<< header.str()
+					<< "------------------------------------------------------\n\n\n" << std::endl;
 	}
 
-	if (!response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
+	if (response.ifs_body && !response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
 	{
 		const size_t capacity = BUFFER_SIZE - buffer.size();
 		std::array<char, BUFFER_SIZE> tmp;
@@ -174,16 +211,14 @@ void	Connection::respond(void)
 	}
 
 	ssize_t sent = send(fd, buffer.data(), buffer.size(), 0);
-	// std::cout << "size: " << buffer.size() << " sent: " << sent << " on fd " << fd << " -> " << std::string(strerror(errno)) << std::endl;
+	// std::cout << "size: " << buffer.size() << " sent: " << sent << " on fd " << fd << " -> " << std::string(strerror(errno)) << std::endl; // debug
 	if (sent > 0)
 		buffer.erase(buffer.begin(), buffer.begin() + sent);
-	// if (response.ifs_body->eof() && buffer.empty())
-	// 	close = true;
-	if (response.ifs_body->eof() && buffer.empty())
+
+		if ((!response.ifs_body || response.ifs_body->eof()) && buffer.empty())
 	{
 		if (response.connection != "keep-alive")
 			close = true;
-		//if connection not keep-alive but close, only set close=true here
 
 		events = POLLIN;
 		request = Request();

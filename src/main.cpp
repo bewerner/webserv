@@ -27,8 +27,6 @@ void	init_sockaddr(Server& server)
 
 void	init_sockets(std::vector<Server>& servers)
 {
-	// servers.push_back(servers[0]);
-	// servers.erase(servers.begin());
 	for (Server& server : servers)
 	{
 		server.socket = socket(PF_INET, SOCK_STREAM, 0);
@@ -47,33 +45,14 @@ void	init_sockets(std::vector<Server>& servers)
 			throw std::runtime_error("Failed to listen on socket");
 		std::cout << "init " << server.host << ':' << server.port << std::endl;
 	}
-	// for (Server& server : servers)
-	// {
-	// 	if (server.socket != -1)
-	// 		continue;
-	// 	//server.init_socket() // maybe put this in Server constructor?
-	// 	server.socket = socket(PF_INET, SOCK_STREAM, 0);
-	// 	if (server.socket < 0)
-	// 		throw std::runtime_error("Failed to open socket");
-	// 	fcntl(server.socket, F_SETFL, O_NONBLOCK);
-
-	// 	init_sockaddr(server);
-	// 	if (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
-	// 		throw std::runtime_error("Failed to bind to " + server.host + ':' + std::to_string(server.port) + ':' + std::string(strerror(errno)));
-	// 	int opt = 1;
-	// 	setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	// 	if (listen(server.socket, 1024) < 0)
-	// 		throw std::runtime_error("Failed to listen on socket");
-	// 	std::cout << "init " << server.host << ':' << server.port << std::endl;
-	// }
 }
 
 void sigint_handler(int signal)
 {
 	(void)signal;
 	std::cout << "exit" << std::endl;
-	// system("leaks webserv");
-	exit(0);
+	// system("leaks webserv"); // debug
+	exit(EXIT_SUCCESS);
 }
 
 int	poll_servers(std::vector<Server>& servers)
@@ -102,6 +81,9 @@ int	poll_servers(std::vector<Server>& servers)
 
 int	main(int argc, char** argv)
 {
+	std::cout << std::filesystem::is_directory("/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/test/index.htmlx") << std::endl;
+	std::cout << argv[0] << "/html/" << std::endl;
+	std::cout << std::filesystem::current_path().string() + "/html/" << std::endl << std::endl << std::endl;
 	std::vector<Server> servers;
 
 	signal(SIGPIPE, SIG_IGN);
@@ -111,16 +93,9 @@ int	main(int argc, char** argv)
 	if (servers.empty())
 		return EXIT_FAILURE;
 
-	//--------------temporary for testing--------------------------
-	// servers[0].port = 8080;
-	// servers[1].port = 8081;
-	// servers[2].port = 8082;
-	// servers[0].request_timeout = std::chrono::seconds(100);
-	// servers[1].request_timeout = std::chrono::seconds(100);
-	// servers[2].request_timeout = std::chrono::seconds(100);
-	//-------------------------------------------------------------
-
 	init_sockets(servers);
+
+	// servers[0].conf.begin()->second.locations.begin()->second.autoindex = true; // TEMP
 
 	while (true)
 	{
@@ -129,12 +104,18 @@ int	main(int argc, char** argv)
 		{
 			for (Connection& connection : server.connections)
 			{
-				if (*connection.revents & (POLLHUP | POLLERR))
-					connection.close = true;
-				else if (*connection.revents & POLLIN)
+				if (*connection.revents & POLLIN)
 					connection.receive();
 				else if (*connection.revents & POLLOUT)
 					connection.respond();
+				else if (*connection.revents & (POLLHUP | POLLERR))
+				{
+					if (*connection.revents & POLLHUP) // debug
+						std::cout << "POLLHUP" << std::endl;
+					if (*connection.revents & POLLERR) // debug
+						std::cout << "POLLERR" << std::endl;
+					connection.close = true;
+				}
 				else if (*connection.revents)
 					throw std::logic_error("this should never happen. investigate"); // temp for debugging
 			}
@@ -149,9 +130,4 @@ int	main(int argc, char** argv)
 			std::cout << server.host << ':' << server.port << " has " << server.connections.size() << " connections | ";
 		std::cout << std::endl;
 	}
-	// catch (const std::exception& e)
-	// {
-	// 	std::cerr << e.what() << (errno ? ": " + std::string(strerror(errno)) : "") << std::endl;
-	// 	exit(1);
-	// }
 }

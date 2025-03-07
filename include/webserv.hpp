@@ -63,28 +63,33 @@ struct Request
 
 struct ServerConfig;
 struct LocationConfig;
+struct Connection;
+struct Server;
 
 struct Response
 {
 	const ServerConfig*		config;
-	const LocationConfig*	location;
+	const LocationConfig*	location_config;
 	std::string				header;
 	std::string				status_text;
 	std::string				body_path;
+	std::string				location;
+	std::string				content_length;
 	std::string				content_type = "application/octet-stream";
 	std::vector<char>		buffer;
 	std::string 			connection;
 
-	std::string							directory_listing;
+	bool								directory_listing = false;
+	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
 
-	void	set_body_path(int& status_code, const std::string& request_target);
-	void	set_content_type(void);
+	void	set_config(const std::string& host, const Server& server);
+	void	set_body_path(int& status_code, std::string& request_target, const Request& request, const Connection& connection);
+	void	generate_directory_listing(const Request& request, const uint16_t port);
+	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
-
+	void	set_content_type(void);
 };
-
-struct Server;
 
 struct Connection
 {
@@ -117,7 +122,7 @@ struct LocationConfig
 	std::string								root;
 	std::set<std::string>					allow_methods;
 	bool									autoindex = false;
-	std::string								index;
+	std::string								index = "index.html";
 	std::string								client_body_temp_path;
 	std::string				 				fastcgi_param;
 	size_t									client_max_body_size = 0;
