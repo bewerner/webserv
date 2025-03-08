@@ -17,7 +17,7 @@ for DIR in $(ls -d */); do
 	nginx -c "$PWD/$DIR/conf.conf" -g "daemon off;" 2> "$DIR/logs/nginx.txt" & NGINX_PID=$!
 	sleep 1;
 	if ! ps -p $NGINX_PID > /dev/null 2>&1; then
-		echo "❓   $(cat "$DIR/logs/nginx.txt")"
+		echo "❓  $(cat "$DIR/logs/nginx.txt")"
 		continue
 	fi
 	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc $(head -n 1 $DIR/request.txt) > $DIR/response/nginx.txt
@@ -29,7 +29,7 @@ for DIR in $(ls -d */); do
 	../webserv "$PWD/$DIR/conf.conf" > /dev/null 2> "$DIR/logs/webserv.txt" & WEBSERV_PID=$!
 	sleep 1;
 	if ! ps -p $WEBSERV_PID > /dev/null 2>&1; then
-		echo "❓  $(cat "$DIR/logs/webserv.txt")"
+		echo "❓ $(cat "$DIR/logs/webserv.txt")"
 		continue
 	fi
 	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc $(head -n 1 $DIR/request.txt) > $DIR/response/webserv.txt

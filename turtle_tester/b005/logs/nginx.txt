@@ -1,1 +1,0 @@
-nginx: [emerg] open() "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/turtle_tester/b005/conf.conf" failed (2: No such file or directory)

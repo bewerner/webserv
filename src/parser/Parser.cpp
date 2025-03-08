@@ -22,6 +22,9 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 void saveLocationConfig(LocationConfig& location, const std::string& line, const std::string& path) {
 	location.path = path;
 
+	if (line.find(';') == std::string::npos)
+		throw std::runtime_error("Missing semicolon in configuration: " + line);
+
 	size_t sepPos = line.find(" ");
 	if (sepPos != std::string::npos)
 	{
@@ -56,6 +59,8 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 
 void saveServerConfig(ServerConfig& config, const std::string& line, std::string& sharedHost, uint16_t& sharedPort)
 {
+	if (line.find(';') == std::string::npos && line.find("location") != 0)
+		throw std::runtime_error("Missing semicolon in configuration: " + line);
 	size_t sepPos = line.find(" ");
 	if (sepPos != std::string::npos)
 	{
@@ -70,14 +75,14 @@ void saveServerConfig(ServerConfig& config, const std::string& line, std::string
 		else if (key == "server_name")
 		{
 			std::istringstream nameStream(value);
-			std::string name;
-			while (nameStream >> name)
-				config.server_name.insert(name);
+			nameStream >> config.server_name;
 		}
 		else if (key == "root")
 			config.root = value;
 		else if (key == "index")
 			config.index = value;
+		else if (key == "autoindex")
+			config.autoindex = (value == "on");
 		else if (key == "client_max_body_size")
 			config.client_max_body_size = std::stoull(value);
 		else if (key == "error_page")
@@ -102,6 +107,7 @@ void extractServerBlockLines(const std::string& block, std::vector<std::string>&
 	std::istringstream stream(cleanBlock);
 	std::string line;
 	bool insideLocation = false;
+	bool expectLocationBrace = false;
 	std::string currentPath;
 
 	while (std::getline(stream, line))
@@ -111,26 +117,44 @@ void extractServerBlockLines(const std::string& block, std::vector<std::string>&
 			continue;
 		if (line.find("server") == 0 && line.find("server_name") != 0)
 			continue;
-		if (line.find("location") == 0)
+		if (expectLocationBrace && line == "{")
 		{
-			size_t pathStart = line.find_first_of(" ") + 1;
-			size_t pathEnd = line.find_first_of("{") - 1;
-			currentPath = removeSpaces(line.substr(pathStart, pathEnd - pathStart));
+			expectLocationBrace = false;
 			insideLocation = true;
 			continue;
 		}
+		if (line.find("location") == 0)
+		{
+			size_t pathStart = line.find_first_of(" ") + 1;
+			
+			size_t bracePos = line.find("{");
+			if (bracePos != std::string::npos)
+			{
+				size_t pathEnd = bracePos - 1;
+				currentPath = removeSpaces(line.substr(pathStart, pathEnd - pathStart));
+				insideLocation = true;
+			}
+			else
+			{
+				currentPath = removeSpaces(line.substr(pathStart));
+				expectLocationBrace = true;
+			}
+			continue;
+		}
+		
 		if (line == "}")
 		{
 			insideLocation = false;
+			expectLocationBrace = false;
 			continue;
 		}
+		
 		if (insideLocation)
 			locationLines.push_back({currentPath, line});
 		else
 			configLines.push_back(line);
 	}
 }
-
 void processServerConfig(const std::vector<std::string>& configLines, ServerConfig& serverConfig, std::string& host, uint16_t& port)
 {
 	for (const auto& configLine : configLines)
@@ -149,29 +173,34 @@ void processServerConfig(const std::vector<std::string>& configLines, ServerConf
 
 void processLocationConfigs(const std::vector<std::pair<std::string, std::string>>& locationLines, ServerConfig& serverConfig)
 {
-	std::map<std::string, LocationConfig> locations;
+	std::map<std::string, LocationConfig> locationsMap;
 	for (const auto& [path, locLine] : locationLines)
 	{
-		if (locations.find(path) == locations.end())
-			locations[path] = LocationConfig();
+		if (locationsMap.find(path) == locationsMap.end())
+			locationsMap[path] = LocationConfig();
 		try
 		{
 			if (!locLine.empty())
-				saveLocationConfig(locations[path], locLine, path);
+				saveLocationConfig(locationsMap[path], locLine, path);
 		}
 		catch (const std::exception& e)
 		{
 			throw std::runtime_error("Error in location config: " + std::string(e.what()));
 		}
 	}
-	serverConfig.locations = locations;
-	for (auto& [path, location] : serverConfig.locations)
+	serverConfig.locations.clear();
+	for (auto& [path, location] : locationsMap)
 	{
 		if (location.root.empty() && !serverConfig.root.empty())
 			location.root = serverConfig.root;
-		
 		if (location.index.empty() && !serverConfig.index.empty())
 			location.index = serverConfig.index;
+		if (location.client_max_body_size == 0 && serverConfig.client_max_body_size != 0)
+			location.client_max_body_size = serverConfig.client_max_body_size;
+		if (!location.autoindex && serverConfig.autoindex)
+			location.autoindex = true;
+		location.error_page = serverConfig.error_page;
+		serverConfig.locations.push_back(location);
 	}
 }
 
@@ -181,59 +210,145 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 	std::vector<std::pair<std::string, std::string>> locationLines;
 	extractServerBlockLines(block, configLines, locationLines);
 
-	Server newServer;
-	ServerConfig serverConfig;
-	std::string host = "0.0.0.0";
-	uint16_t port = 80;
+	ServerConfig baseConfig;
+	std::vector<std::pair<std::string, uint16_t>> listenDirectives;
+	std::vector<std::string> serverNames;
+	bool hasServerNames = false;
 
-	processServerConfig(configLines, serverConfig, host, port);
-	newServer.host = host;
-	newServer.port = port;
+	for (const auto& configLine : configLines)
+	{
+		if (configLine.find("listen") == 0)
+		{
+			size_t sepPos = configLine.find(" ");
+			if (sepPos != std::string::npos)
+			{
+				std::string value = removeSpaces(configLine.substr(sepPos + 1));
+				if (value.back() == ';')
+					value.pop_back();
+				
+				std::string host = "0.0.0.0";
+				std::string portPart = "80";
+				size_t colonPos = value.find(':');
+				
+				if (colonPos != std::string::npos)
+				{
+					host = value.substr(0, colonPos);
+					portPart = value.substr(colonPos + 1);
+				}
+				else
+					portPart = value;
+				uint16_t port = static_cast<uint16_t>(std::stoi(portPart));
+				listenDirectives.push_back({host, port});
+			}
+		}
+	}
+	if (listenDirectives.empty())
+		listenDirectives.push_back({"0.0.0.0", 80});
+	for (const auto& configLine : configLines)
+	{
+		if (configLine.find("server_name") == 0)
+		{
+			size_t sepPos = configLine.find(" ");
+			if (sepPos != std::string::npos)
+			{
+				std::string value = removeSpaces(configLine.substr(sepPos + 1));
+				if (value.back() == ';')
+					value.pop_back();
+				
+				std::istringstream nameStream(value);
+				std::string name;
+				while (nameStream >> name)
+				{
+					serverNames.push_back(name);
+					hasServerNames = true;
+				}
+			}
+		}
+	}
+	if (!hasServerNames)
+		serverNames.push_back("");
+	for (const auto& configLine : configLines)
+	{
+		if (configLine.find("listen") != 0 && configLine.find("server_name") != 0)
+		{
+			try
+			{
+				std::string tempHost = "0.0.0.0";
+				uint16_t tempPort = 80;
+				
+				if (!configLine.empty())
+					saveServerConfig(baseConfig, configLine, tempHost, tempPort);
+			}
+			catch (const std::exception& e)
+			{
+				throw std::runtime_error("Error in server config: " + std::string(e.what()));
+			}
+		}
+	}
+	processLocationConfigs(locationLines, baseConfig);
+	for (const auto& [host, port] : listenDirectives)
+	{
+		for (size_t i = 0; i < serverNames.size(); ++i)
+		{
+			const std::string& name = serverNames[i];
+			
+			Server newServer;
+			newServer.host = host;
+			newServer.port = port;
 
-	processLocationConfigs(locationLines, serverConfig);
-	if (serverConfig.server_name.empty())
-		serverConfig.server_name.insert("localhost");
-	std::string primaryName = *serverConfig.server_name.begin();
-	newServer.conf[primaryName] = serverConfig;
-	servers.push_back(newServer);
+			ServerConfig serverConfig = baseConfig;
+			serverConfig.host = host;
+			serverConfig.port = port;
+			serverConfig.server_name = name;
+			newServer.conf.push_back(serverConfig);
+			servers.push_back(newServer);
+		}
+	}
 }
 
 void groupServersByPort(const std::vector<Server>& allServers, std::vector<Server>& servers)
 {
-	std::map<std::pair<std::string, uint16_t>, std::vector<Server*>> hostPortGroups;
+	std::map<std::pair<std::string, uint16_t>, std::vector<const Server*>> hostPortGroups;
+	std::map<std::pair<std::string, uint16_t>, const Server*> firstServerPerHostPort;
 	for (const Server& server : allServers)
 	{
-		Server* serverPtr = const_cast<Server*>(&server);
-		hostPortGroups[{server.host, server.port}].push_back(serverPtr);
+		std::pair<std::string, uint16_t> hostPort = {server.host, server.port};
+		hostPortGroups[hostPort].push_back(&server);
+		
+		if (firstServerPerHostPort.find(hostPort) == firstServerPerHostPort.end())
+			firstServerPerHostPort[hostPort] = &server;
 	}
+
 	servers.clear();
+
 	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
 		combinedServer.host = hostPort.first;
 		combinedServer.port = hostPort.second;
-
-		std::set<std::string> seenNames;
-
-		for (Server* server : portServers)
+		std::vector<ServerConfig> allConfigs;
+		const Server* firstServer = firstServerPerHostPort[hostPort];
+		for (const auto& config : firstServer->conf)
+			allConfigs.push_back(config);
+		for (const Server* server : portServers)
 		{
-			for (const auto& [name, config] : server->conf)
+			if (server == firstServer) continue;
+			for (const auto& config : server->conf)
 			{
-				if (seenNames.find(name) != seenNames.end())
+				bool configExists = false;
+				for (const auto& existingConfig : allConfigs)
 				{
-					std::cerr << "Warning: Server with name '" << name 
-								<< "' on IP " << combinedServer.host 
-								<< " and port " << combinedServer.port 
-								<< " is already defined. The first definition will be used." 
-								<< std::endl;
+					if (existingConfig.server_name == config.server_name)
+					{
+						configExists = true;
+						break;
+					}
 				}
-				else
-				{
-					combinedServer.conf[name] = config;
-					seenNames.insert(name);
-				}
+				if (!configExists)
+					allConfigs.push_back(config);
 			}
 		}
+		combinedServer.conf = allConfigs;
 		servers.push_back(combinedServer);
 	}
 }

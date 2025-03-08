@@ -1,7 +1,0 @@
-HTTP/1.1 404 Not Found
-Content-Type: text/html
-Content-Length: 165
-Connection: keep-alive
-Location: http://a:8080/test/
-
-<html><head><meta charset="UTF-8"><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>🐢webserv🐢</center></body></html>

@@ -9,6 +9,15 @@
 // 	str = new_str;
 // }
 
+static void	normalize_path(std::string& path)
+{
+	size_t pos;
+	while ((pos = path.find("//")) != std::string::npos)
+	{
+		path.erase(path.begin() + pos);
+	}
+}
+
 bool	parse_start_line(Request& request , std::istringstream& iss_header, int& status_code)
 {
 	std::string	start_line;
@@ -37,6 +46,7 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	request.method = method;
 
 	request.request_target = request_target;
+	normalize_path(request.request_target);
 
 	// size_t	pos = start_line.find("HTTP");
 	// if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')

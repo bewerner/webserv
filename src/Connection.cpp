@@ -21,7 +21,6 @@ Connection::Connection(Server* server) : server(server)
 	timeout = std::chrono::steady_clock::now() + server->request_timeout;
 }
 
-
 Connection::~Connection(void)
 {
 	std::cout << "X  close connection" << " with fd " << fd << std::endl;
@@ -37,6 +36,23 @@ static void	normalize_line_feed(std::vector<char>& buffer)
 		if (i >= 1 && buffer[i] == '\n' && buffer[i - 1] == '\n')
 			break ;
 	}
+}
+
+void	Connection::set_server_config(void)
+{
+	for (const ServerConfig& config : server->conf)
+	{
+		if (config.server_name == request.host)
+		{
+			std::cout << "server config: " << config.server_name
+				<< " | host is matching" << std::endl;
+			server_config = &(config);
+			return ;
+		}
+	}
+	std::cout << "server config: " << server->conf[0].server_name
+		<< " | default" << std::endl;
+	server_config = &(server->conf[0]);
 }
 
 void	Connection::receive(void)
@@ -133,35 +149,36 @@ void	Connection::respond(void)
 
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 
-		if (!status_code)
-		status_code = 200;
 		response.connection = request.connection;
-		
-		// find correct config (init connection.config)
-		// response.config = connection.config
-		// find correct location (init response.location_config)
 
-		response.set_config(request.host, *server);
+		set_server_config();
+		response.server_config = server_config;
+		response.set_location_config(request.request_target);
 
-		response.location_config = &(response.config->locations.begin()->second); //TEMP
-		// response.location_config->autoindex = true; //TEMP
+		if (status_code < 300)
+			response.set_response_target(request.request_target, status_code);
+		if (status_code < 300)
+			response.init_body(status_code, request, server->port);
+		if (status_code >= 300)
+			response.init_error_body(status_code, request, server->port);
+		if (!status_code)
+			status_code = 200;
 
-		// response.set_location_config(request.host, *server);
-		// response.set_location_config(request.host);
-		// response.expand_request_target(status_code, request.request_target);
+		response.set_status_text(status_code);
+		if (status_code == 302)
+			response.status_text = "Moved Temporarily";
+		response.set_content_type();
 
-		int tmp = status_code;
-		response.set_body_path(status_code, request.request_target, request, *this);
-		if (!response.ifs_body && !response.directory_listing && status_code != tmp)
-			response.set_body_path(status_code, request.request_target, request, *this);
+		// int tmp = status_code;
+		// response.set_body_path(status_code, request.request_target, request, *this);
+		// if (!response.ifs_body && !response.directory_listing && status_code != tmp)
+		// 	response.set_body_path(status_code, request.request_target, request, *this);
 		
 		// if (status_code < 300)
 		// 	response.set_body_path(status_code, request.request_target, request, *this);
 		// if (status_code >= 300)
 		// 	response.set_body_path(status_code, request.request_target, request, *this);
 		
-		response.set_status_text(status_code);
-		response.set_content_type();
 
 		if (response.ifs_body)
 		{
@@ -173,7 +190,7 @@ void	Connection::respond(void)
 				return ;
 			}
 			std::cout << "XXXXXXXXXX" << std::endl;
-			response.content_length = std::to_string(std::filesystem::file_size(response.body_path));
+			response.content_length = std::to_string(std::filesystem::file_size(response.response_target));
 			std::cout << "XXXXXXXXXX" << std::endl;
 		}
 		else
@@ -188,11 +205,11 @@ void	Connection::respond(void)
 		std::ostringstream header;
 		header	<< "HTTP/1.1 "			<< status_code << ' ' << response.status_text	<< "\r\n"
 				<< "Content-Type: "		<< response.content_type						<< "\r\n"
-				<< "Content-Length: "	<< response.content_length						<< "\r\n"
-				<< "Connection: "		<< response.connection							<< "\r\n";
+				<< "Content-Length: "	<< response.content_length						<< "\r\n";
 		if (!response.location.empty())
 			header << "Location: "		<< response.location							<< "\r\n";
-		header << "\r\n";
+		header	<< "Connection: "		<< response.connection							<< "\r\n";
+		header	<< "\r\n";
 		response.header = header.str();
 		buffer.insert(buffer.begin(), response.header.begin(), response.header.end());
 		
@@ -215,7 +232,7 @@ void	Connection::respond(void)
 	if (sent > 0)
 		buffer.erase(buffer.begin(), buffer.begin() + sent);
 
-		if ((!response.ifs_body || response.ifs_body->eof()) && buffer.empty())
+	if ((!response.ifs_body || response.ifs_body->eof()) && buffer.empty())
 	{
 		if (response.connection != "keep-alive")
 			close = true;

@@ -24,7 +24,8 @@ bool isValidServerKey(const std::string& key)
 		"root",
 		"index",
 		"client_max_body_size",
-		"error_page"
+		"error_page",
+		"autoindex"
 	};
 	return validKeys.find(key) != validKeys.end();
 }
@@ -35,19 +36,25 @@ bool validateHost(const std::vector<Server>& servers)
 
 	for (const auto& server : servers)
 	{
-		for (const auto& [name, config] : server.conf)
+		for (const auto& config : server.conf)
 		{
-			if (config.host == "0.0.0.0" || config.host == "*")
+			if (config.host == "0.0.0.0")
 				continue;
-			struct sockaddr_in sa;
-			if (inet_pton(AF_INET, config.host.c_str(), &(sa.sin_addr)) != 0)
+			try
+			{
+				host_string_to_in_addr(config.host);
 				continue;
-			std::regex hostnameRegex("^[a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,61}[a-zA-Z0-9])?$");
-			if (std::regex_match(config.host, hostnameRegex))
-				continue;
-			std::cerr 
-			<< "Error: Invalid host in server '" << name << "': " << config.host << std::endl;
-			isValidHost = false;
+			}
+			catch (const std::runtime_error&)
+			{
+				std::regex hostnameRegex("^[a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,61}[a-zA-Z0-9])?$");
+				if (std::regex_match(config.host, hostnameRegex))
+					continue;
+					
+				std::cerr 
+					<< "Error: Invalid host in server '" << config.server_name << "': " << config.host << std::endl;
+				isValidHost = false;
+			}
 		}
 	}
 	return isValidHost;
@@ -71,7 +78,7 @@ bool validatePort(const std::vector<Server>& servers)
 			std::cerr 
 			<< "Error: Port " 
 			<< server.port 
-			<< "Ports below 1024 require root privileges, but the program is not running as root!"
+			<< " Ports below 1024 require root privileges, but the program is not running as root!"
 			<< std::endl;
 			isValidPort = false;
 		}

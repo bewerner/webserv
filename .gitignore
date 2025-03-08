@@ -7,3 +7,6 @@ no_read.html
 
 !turtle_tester
 !turtle_tester/**/*
+
+turtle_tester/*/logs
+turtle_tester/*/response
