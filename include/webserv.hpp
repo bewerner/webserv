@@ -165,23 +165,23 @@ struct Server
 
 //parser.cpp
 void	parser(std::vector<Server>& data, std::string confPath);
-void	parse_request(Request& request, int& status_code);
-bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);
 
 //utils.cpp
-std::string removeSpaces(const std::string& str);
-std::string removeComments(const std::string& str);
-void printData(const std::vector<Server>& servers);
+std::string		removeSpaces(const std::string& str);
+std::string		removeComments(const std::string& str);
+void			printData(const std::vector<Server>& servers);
 
 //validation.cpp
-bool isValidLocationKey(const std::string& key);
-bool isValidServerKey(const std::string& key);
-bool validateConfigurations(const std::vector<Server>& servers);
+in_addr			host_string_to_in_addr(const std::string& host);
+bool			isValidLocationKey(const std::string& key);
+bool			isValidServerKey(const std::string& key);
+bool			validateConfigurations(const std::vector<Server>& servers);
 
 //init_sockets.cpp
-void init_sockaddr(Server& server);
-void init_sockets(std::vector<Server>& servers);
+void			init_sockaddr(Server& server);
+void			init_sockets(std::vector<Server>& servers);
 
 /************************************************/
 
-in_addr	host_string_to_in_addr(const std::string& host);
+void	parse_request(Request& request, int& status_code);
+bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);
