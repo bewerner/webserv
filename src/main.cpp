@@ -132,9 +132,6 @@ void	expand_relative_roots(std::vector<Server>& servers)
 
 int	main(int argc, char** argv)
 {
-	std::cout << std::filesystem::is_directory("/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/test/index.htmlx") << std::endl;
-	std::cout << argv[0] << "/html/" << std::endl;
-	std::cout << std::filesystem::current_path().string() + "/html/" << std::endl << std::endl << std::endl;
 	std::vector<Server> servers;
 
 	signal(SIGPIPE, SIG_IGN);
