@@ -93,6 +93,10 @@ int	main(int argc, char** argv)
 	parser(servers, argc > 1 ? argv[1] : "webserver.conf");
 	if (servers.empty())
 		return EXIT_FAILURE;
+		
+	add_fallback_locations(servers); // TEMPORARY FUNCTION. should happen in parser.
+	expand_relative_roots(servers); // TEMPORARY FUNCTION. should happen in parser.
+
 	while (true)
 	{
 		poll_servers(servers);
