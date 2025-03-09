@@ -111,6 +111,25 @@ void	add_fallback_locations(std::vector<Server>& servers)
 	}
 }
 
+void	expand_relative_roots(std::vector<Server>& servers)
+{
+	for (Server& s : servers)
+	{
+		for (ServerConfig& c : s.conf)
+		{
+			if (c.root.front() != '/')
+				c.root = std::filesystem::current_path().string() + '/' + c.root;
+			std::cout << "ROOT---------------------------------------------------" << c.root << std::endl;
+			for (LocationConfig& l : c.locations)
+			{
+				if (l.root.front() != '/')
+					l.root = std::filesystem::current_path().string() + '/' + l.root;
+				std::cout << "ROOT---------------------------------------------------" << l.root << std::endl;
+			}
+		}
+	}
+}
+
 int	main(int argc, char** argv)
 {
 	std::cout << std::filesystem::is_directory("/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/test/index.htmlx") << std::endl;
@@ -125,6 +144,7 @@ int	main(int argc, char** argv)
 	if (servers.empty())
 		return EXIT_FAILURE;
 	add_fallback_locations(servers); // TEMPORARY FUNCTION. should happen in parser.
+	expand_relative_roots(servers); // TEMPORARY FUNCTION. should happen in parser.
 
 	init_sockets(servers);
 

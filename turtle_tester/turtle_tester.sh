@@ -1,6 +1,11 @@
 #! /bin/bash
 
 cd "$(dirname "$0")"
+TURTLE_DIR=$(pwd)
+
+cd ..
+WEBSERV_DIR=$(pwd)
+cd $TURTLE_DIR
 
 rm -rf */logs */response
 echo
@@ -12,9 +17,15 @@ for DIR in $(ls -d */); do
 
 	mkdir -p $DIR/logs $DIR/response
 
+	if [[ ! -f "$DIR/conf.conf" || ! -f "$DIR/request.txt" ]]; then
+		echo "❓  missing conf.conf or request.txt"
+		continue
+	fi
+
+
 
 	# NGINX
-	nginx -c "$PWD/$DIR/conf.conf" -g "daemon off;" 2> "$DIR/logs/nginx.txt" & NGINX_PID=$!
+	nginx -c "$PWD/$DIR/conf.conf" -p $WEBSERV_DIR -g "daemon off;" 2> "$DIR/logs/nginx.txt" & NGINX_PID=$!
 	sleep 1;
 	if ! ps -p $NGINX_PID > /dev/null 2>&1; then
 		echo "❓  $(cat "$DIR/logs/nginx.txt")"
@@ -26,15 +37,20 @@ for DIR in $(ls -d */); do
 
 
 	# WEBSERV
-	../webserv "$PWD/$DIR/conf.conf" > /dev/null 2> "$DIR/logs/webserv.txt" & WEBSERV_PID=$!
+	cd $WEBSERV_DIR
+	./webserv "$TURTLE_DIR/$DIR/conf.conf" > /dev/null 2> "$TURTLE_DIR/$DIR/logs/webserv.txt" & WEBSERV_PID=$!
 	sleep 1;
 	if ! ps -p $WEBSERV_PID > /dev/null 2>&1; then
-		echo "❓ $(cat "$DIR/logs/webserv.txt")"
+		echo "❓ $(cat "$TURTLE_DIR/$DIR/logs/webserv.txt")"
+		cd $TURTLE_DIR
 		continue
 	fi
-	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc $(head -n 1 $DIR/request.txt) > $DIR/response/webserv.txt
+	{ tail -n +2 $TURTLE_DIR/$DIR/request.txt; echo; echo; } | nc $(head -n 1 $TURTLE_DIR/$DIR/request.txt) > $TURTLE_DIR/$DIR/response/webserv.txt
 	kill -SIGINT $WEBSERV_PID
 	wait $WEBSERV_PID
+	cd $TURTLE_DIR
+
+
 
 
 	# compare
