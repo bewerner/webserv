@@ -280,8 +280,8 @@ void	Response::generate_directory_listing(const Request& request, const uint16_t
 void	Response::generate_error_page(const int status_code)
 {
 	// static const std::string error_page_template = 
-	// str_body = "<html>\r\n<head><meta charset=\"UTF-8\"><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>🐢webserv🐢</center>\r\n</body>\r\n</html>\r\n";
-	str_body = "<html>\r\n<head><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>nginx/1.27.4</center>\r\n</body>\r\n</html>\r\n";
+	str_body = "<html>\r\n<head><meta charset=\"UTF-8\"><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>🐢webserv🐢</center>\r\n</body>\r\n</html>\r\n";
+	// str_body = "<html>\r\n<head><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>nginx/1.27.4</center>\r\n</body>\r\n</html>\r\n";
 	std::cout << str_body << std::endl;
 	content_length = std::to_string(str_body.length());
 }
