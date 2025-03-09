@@ -64,34 +64,41 @@ struct Request
 
 struct ServerConfig;
 struct LocationConfig;
+struct Connection;
+struct Server;
 
 struct Response
 {
-	const ServerConfig*		config;
-	const LocationConfig*	location;
+	const ServerConfig*		server_config = nullptr;
+	const LocationConfig*	location_config = nullptr;
 	std::string				header;
 	std::string				status_text;
-	std::string				body_path;
+	std::string				response_target;
+	std::string				location;
+	std::string				content_length;
 	std::string				content_type = "application/octet-stream";
 	std::vector<char>		buffer;
 	std::string 			connection;
 
-	std::string							directory_listing;
+	bool								directory_listing = false;
+	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
 
-	void	set_body_path(int& status_code, const std::string& request_target);
-	void	set_content_type(void);
+	void	set_location_config(const std::string& request_target);
+	void	set_response_target(std::string request_target, int& status_code);
+	void	init_body(int& status_code, const Request& request, const uint16_t port);
+	void	init_error_body(int& status_code, const Request& request, const uint16_t port);
+	void	generate_directory_listing(const Request& request, const uint16_t port);
+	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
-
+	void	set_content_type(void);
 };
-
-struct Server;
 
 struct Connection
 {
 	int					fd;
-	const Server*		server;
-	const ServerConfig*	config;
+	const Server*		server = nullptr;
+	const ServerConfig*	server_config = nullptr;
 	short				events = POLLIN;
 	bool				close = false;
 	int					status_code = 0;
@@ -108,6 +115,7 @@ struct Connection
 	Connection(Server* server);
 	~Connection(void);
 
+	void	set_server_config(void);
 	void	receive(void);
 	void	respond(void);
 };
@@ -131,7 +139,7 @@ struct ServerConfig
 	std::string										host_str;
 	uint16_t										port = 80;
 	std::string										root = std::filesystem::current_path().string() + "/html/";
-	std::string										index;
+	std::string										index = "index.html";
 	std::map<int, std::string>						error_page;
 	size_t											client_max_body_size = 0;
 	std::string										server_name;

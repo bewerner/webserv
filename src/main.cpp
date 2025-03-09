@@ -4,8 +4,8 @@ void sigint_handler(int signal)
 {
 	(void)signal;
 	std::cout << "exit" << std::endl;
-	// system("leaks webserv");
-	exit(0);
+	// system("leaks webserv"); // debug
+	exit(EXIT_SUCCESS);
 }
 
 int	poll_servers(std::vector<Server>& servers)
@@ -32,6 +32,57 @@ int	poll_servers(std::vector<Server>& servers)
 	return (poll(fds.data(), fds.size(), 1000));
 }
 
+LocationConfig	get_fallback_location(const ServerConfig& server_config)
+{
+	LocationConfig config;
+	config.path = "/";
+	config.root = server_config.root;
+	config.allow_methods = std::set<std::string>({"GET", "POST", "DELETE"});
+	config.autoindex = server_config.autoindex;
+	config.index = server_config.index;
+	config.client_max_body_size = server_config.client_max_body_size;
+	config.error_page = server_config.error_page;
+
+	return (config);
+}
+
+void	add_fallback_locations(std::vector<Server>& servers)
+{
+	for (Server& s : servers)
+	{
+		for (ServerConfig& c : s.conf)
+		{
+			bool has_fallback_location = false;
+			for (LocationConfig& l : c.locations)
+			{
+				if (l.path == "/")
+					has_fallback_location = true;
+			}
+			if (!has_fallback_location)
+				c.locations.insert(c.locations.end(), get_fallback_location(c));
+		}
+	}
+}
+
+void	expand_relative_roots(std::vector<Server>& servers)
+{
+	for (Server& s : servers)
+	{
+		for (ServerConfig& c : s.conf)
+		{
+			if (c.root.front() != '/')
+				c.root = std::filesystem::current_path().string() + '/' + c.root;
+			std::cout << "ROOT---------------------------------------------------" << c.root << std::endl;
+			for (LocationConfig& l : c.locations)
+			{
+				if (l.root.front() != '/')
+					l.root = std::filesystem::current_path().string() + '/' + l.root;
+				std::cout << "ROOT---------------------------------------------------" << l.root << std::endl;
+			}
+		}
+	}
+}
+
 int	main(int argc, char** argv)
 {
 	std::vector<Server> servers;
@@ -49,12 +100,18 @@ int	main(int argc, char** argv)
 		{
 			for (Connection& connection : server.connections)
 			{
-				if (*connection.revents & (POLLHUP | POLLERR))
-					connection.close = true;
-				else if (*connection.revents & POLLIN)
+				if (*connection.revents & POLLIN)
 					connection.receive();
 				else if (*connection.revents & POLLOUT)
 					connection.respond();
+				else if (*connection.revents & (POLLHUP | POLLERR))
+				{
+					if (*connection.revents & POLLHUP) // debug
+						std::cout << "POLLHUP" << std::endl;
+					if (*connection.revents & POLLERR) // debug
+						std::cout << "POLLERR" << std::endl;
+					connection.close = true;
+				}
 				else if (*connection.revents)
 					throw std::logic_error("this should never happen. investigate"); // temp for debugging
 			}
@@ -69,9 +126,4 @@ int	main(int argc, char** argv)
 			std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
 		std::cout << std::endl;
 	}
-	// catch (const std::exception& e)
-	// {
-	// 	std::cerr << e.what() << (errno ? ": " + std::string(strerror(errno)) : "") << std::endl;
-	// 	exit(1);
-	// }
 }
