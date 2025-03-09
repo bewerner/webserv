@@ -19,10 +19,9 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "Warnung: Host '" << hostPart << "' konnte nicht aufgelöst werden. Verwende 0.0.0.0" << std::endl;
+		std::cerr << "Warning: Host '" << hostPart << "' could not be resolved. Using 0.0.0.0" << std::endl;
 		config.host.s_addr = INADDR_ANY;
 	}
-	
 	config.port = static_cast<uint16_t>(std::stoi(portPart));
 	sharedHost = hostPart;
 	sharedPort = config.port;
@@ -31,77 +30,124 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 void saveLocationConfig(LocationConfig& location, const std::string& line, const std::string& path) {
 	location.path = path;
 
-	if (line.find(';') == std::string::npos)
+	if (line.find(';') == std::string::npos && line.find("location") != 0)
 		throw std::runtime_error("Missing semicolon in configuration: " + line);
 
 	size_t sepPos = line.find(" ");
-	if (sepPos != std::string::npos)
+
+	if (sepPos == std::string::npos)
+		throw std::runtime_error("Invalid format (no space to separate key and value): " + line);
+
+	std::string key = line.substr(0, sepPos);
+
+	if (key.find(';') != std::string::npos)
+		throw std::runtime_error("Invalid semicolon placement in key: " + key);
+
+	std::string value = removeSpaces(line.substr(sepPos + 1));
+
+	if (value.empty() || value == ";")
+		throw std::runtime_error("Missing value for key: " + key);
+
+	bool endsWithSemicolon = false;
+	if (!value.empty() && value.back() == ';')
 	{
-		std::string key = line.substr(0, sepPos);
-		std::string value = removeSpaces(line.substr(sepPos + 1));
-		if (value.back() == ';')
-			value.pop_back();
-		
-		if (!isValidLocationKey(key))
-			throw std::runtime_error("Invalid location configuration key: " + key);
-		else if (key == "root")
-			location.root = value;
-		else if (key == "autoindex")
-			location.autoindex = (value == "on");
-		else if (key == "index")
-			location.index = value;
-		else if (key == "upload_dir")
-			location.client_body_temp_path = value;
-		else if (key == "cgi_extension")
-			location.fastcgi_param = value;
-		else if (key == "allow_methods")
-		{
-			std::istringstream methodStream(value);
-			std::string method;
-			while (methodStream >> method)
-				location.allow_methods.insert(method);
-		}
-		else
-			location.client_max_body_size = std::stoull(value);
+		endsWithSemicolon = true;
+		value.pop_back();
 	}
+
+	if (value.empty())
+		throw std::runtime_error("Missing value for key: " + key);
+
+	if (value.find(';') != std::string::npos)
+		throw std::runtime_error("Invalid semicolon placement in value: " + line);
+
+	if (!endsWithSemicolon && line.find("location") != 0)
+		throw std::runtime_error("Missing semicolon at the end of line: " + line);
+
+	if (!isValidLocationKey(key))
+		throw std::runtime_error("Invalid location configuration key: " + key);
+
+	if (key == "root")
+		location.root = value;
+	else if (key == "autoindex")
+		location.autoindex = (value == "on");
+	else if (key == "index")
+		location.index = value;
+	else if (key == "upload_dir")
+		location.client_body_temp_path = value;
+	else if (key == "cgi_extension")
+		location.fastcgi_param = value;
+	else if (key == "allow_methods")
+	{
+		std::istringstream methodStream(value);
+		std::string method;
+		while (methodStream >> method)
+			location.allow_methods.insert(method);
+	}
+	else if (key == "client_max_body_size")
+		location.client_max_body_size = std::stoull(value);
 }
 
 void saveServerConfig(ServerConfig& config, const std::string& line, std::string& sharedHost, uint16_t& sharedPort)
 {
 	if (line.find(';') == std::string::npos && line.find("location") != 0)
 		throw std::runtime_error("Missing semicolon in configuration: " + line);
+
 	size_t sepPos = line.find(" ");
-	if (sepPos != std::string::npos)
+
+	if (sepPos == std::string::npos)
+		throw std::runtime_error("Invalid format (no space to separate key and value): " + line);
+
+	std::string key = line.substr(0, sepPos);
+
+	if (key.find(';') != std::string::npos)
+		throw std::runtime_error("Invalid semicolon placement in key: " + key);
+
+	std::string value = removeSpaces(line.substr(sepPos + 1));
+
+	if (value.empty() || value == ";")
+		throw std::runtime_error("Missing value for key: " + key);
+
+	bool endsWithSemicolon = false;
+	if (!value.empty() && value.back() == ';')
 	{
-		std::string key = line.substr(0, sepPos);
-		std::string value = removeSpaces(line.substr(sepPos + 1));
-		if (value.back() == ';')
-			value.pop_back();
-		if (!isValidServerKey(key))
-			throw std::runtime_error("Invalid server configuration key: " + key);
-		if (key == "listen")
-			parseListen(config, value, sharedHost, sharedPort);
-		else if (key == "server_name")
-		{
-			std::istringstream nameStream(value);
-			nameStream >> config.server_name;
-		}
-		else if (key == "root")
-			config.root = value;
-		else if (key == "index")
-			config.index = value;
-		else if (key == "autoindex")
-			config.autoindex = (value == "on");
-		else if (key == "client_max_body_size")
-			config.client_max_body_size = std::stoull(value);
-		else if (key == "error_page")
-		{
-			std::istringstream errorStream(value);
-			int errorCode;
-			std::string errorPage;
-			if (errorStream >> errorCode >> errorPage)
-				config.error_page[errorCode] = errorPage;
-		}
+		endsWithSemicolon = true;
+		value.pop_back();
+	}
+
+	if (value.empty())
+		throw std::runtime_error("Missing value for key: " + key);
+
+	if (value.find(';') != std::string::npos)
+		throw std::runtime_error("Invalid semicolon placement in value: " + line);
+
+	if (!endsWithSemicolon && line.find("location") != 0)
+		throw std::runtime_error("Missing semicolon at the end of line: " + line);
+
+	if (!isValidServerKey(key))
+		throw std::runtime_error("Invalid server configuration key: " + key);
+
+	if (key == "listen")
+		parseListen(config, value, sharedHost, sharedPort);
+	else if (key == "server_name")
+	{
+		std::istringstream nameStream(value);
+		nameStream >> config.server_name;
+	}
+	else if (key == "root")
+		config.root = value;
+	else if (key == "index")
+		config.index = value;
+	else if (key == "autoindex")
+		config.autoindex = (value == "on");
+	else if (key == "client_max_body_size")
+		config.client_max_body_size = std::stoull(value);
+	else if (key == "error_page") {
+		std::istringstream errorStream(value);
+		int errorCode;
+		std::string errorPage;
+		if (errorStream >> errorCode >> errorPage)
+			config.error_page[errorCode] = errorPage;
 	}
 }
 
@@ -135,7 +181,6 @@ void extractServerBlockLines(const std::string& block, std::vector<std::string>&
 		if (line.find("location") == 0)
 		{
 			size_t pathStart = line.find_first_of(" ") + 1;
-			
 			size_t bracePos = line.find("{");
 			if (bracePos != std::string::npos)
 			{
@@ -150,20 +195,19 @@ void extractServerBlockLines(const std::string& block, std::vector<std::string>&
 			}
 			continue;
 		}
-		
 		if (line == "}")
 		{
 			insideLocation = false;
 			expectLocationBrace = false;
 			continue;
 		}
-		
 		if (insideLocation)
 			locationLines.push_back({currentPath, line});
 		else
 			configLines.push_back(line);
 	}
 }
+
 void processServerConfig(const std::vector<std::string>& configLines, ServerConfig& serverConfig, std::string& host, uint16_t& port)
 {
 	for (const auto& configLine : configLines)
@@ -308,7 +352,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			}
 			catch (const std::exception& e)
 			{
-				std::cerr << "Warnung: Host '" << host_str << "' konnte nicht aufgelöst werden. Verwende 0.0.0.0" << std::endl;
+				std::cerr << "Warning: Host '" << host_str << "' could not be resolved. Using 0.0.0.0" << std::endl;
 				newServer.host.s_addr = INADDR_ANY;
 			}
 			newServer.host_str = host_str;
@@ -321,7 +365,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			}
 			catch (const std::exception& e)
 			{
-				std::cerr << "Warnung: Host '" << host_str << "' konnte nicht aufgelöst werden. Verwende 0.0.0.0" << std::endl;
+				std::cerr << "Warning: Host '" << host_str << "' could not be resolved. Using 0.0.0.0" << std::endl;
 				serverConfig.host.s_addr = INADDR_ANY;
 			}
 			serverConfig.host_str = host_str;
@@ -346,9 +390,7 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 		if (firstServerPerHostPort.find(hostPort) == firstServerPerHostPort.end())
 			firstServerPerHostPort[hostPort] = &server;
 	}
-
 	servers.clear();
-
 	for (auto& [hostPort, portServers] : hostPortGroups)
 	{
 		Server combinedServer;
@@ -356,11 +398,9 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 		combinedServer.host = firstServer->host;
 		combinedServer.host_str = firstServer->host_str;
 		combinedServer.port = hostPort.second;
-		
 		std::vector<ServerConfig> allConfigs;
 		for (const auto& config : firstServer->conf)
 			allConfigs.push_back(config);
-		
 		for (const Server* server : portServers)
 		{
 			if (server == firstServer) continue;
