@@ -14,7 +14,7 @@ void	Response::set_location_config(const std::string& request_target)
 			}
 		}
 	}
-	std::cout << "location config: \"" << location_config->path << "\"" << std::endl;
+	// std::cout << "location config: \"" << location_config->path << "\"" << std::endl;
 	// if (match_length == 0)
 	// 	location_config = nullptr;
 	if (match_length == 0)
@@ -120,12 +120,12 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 
 void	Response::init_error_body(int& status_code, const Request& request, const uint16_t port)
 {
-	if (location_config->error_page.find(status_code) != location_config->error_page.end())
+	if (server_config->error_page.find(status_code) != server_config->error_page.end())
 	{
-		response_target = location_config->error_page.at(status_code);
-		set_location_config(response_target);
+		response_target = server_config->error_page.at(status_code);
 		if (response_target.front() == '/')
 		{
+			set_location_config(response_target);
 			set_response_target(response_target, status_code);
 			init_body(status_code, request, port);
 		}

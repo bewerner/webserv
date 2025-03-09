@@ -31,8 +31,8 @@ for DIR in $(ls -d */); do
 		echo "❓  $(cat "$DIR/logs/nginx.txt")"
 		continue
 	fi
-	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc $(head -n 1 $DIR/request.txt) > $DIR/response/nginx.txt
-	kill -SIGINT $NGINX_PID
+	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc -w 1 $(head -n 1 $DIR/request.txt) > $DIR/response/nginx.txt
+	kill -SIGTERM $NGINX_PID
 	wait $NGINX_PID
 
 
@@ -45,7 +45,7 @@ for DIR in $(ls -d */); do
 		cd $TURTLE_DIR
 		continue
 	fi
-	{ tail -n +2 $TURTLE_DIR/$DIR/request.txt; echo; echo; } | nc $(head -n 1 $TURTLE_DIR/$DIR/request.txt) > $TURTLE_DIR/$DIR/response/webserv.txt
+	{ tail -n +2 $TURTLE_DIR/$DIR/request.txt; echo; echo; } | nc -w 1 $(head -n 1 $TURTLE_DIR/$DIR/request.txt) > $TURTLE_DIR/$DIR/response/webserv.txt
 	kill -SIGINT $WEBSERV_PID
 	wait $WEBSERV_PID
 	cd $TURTLE_DIR

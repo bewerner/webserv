@@ -153,7 +153,9 @@ void	Connection::respond(void)
 
 		set_server_config();
 		response.server_config = server_config;
-		response.set_location_config(request.request_target);
+	
+		if (status_code < 300)
+			response.set_location_config(request.request_target);
 
 		if (status_code < 300)
 			response.set_response_target(request.request_target, status_code);
