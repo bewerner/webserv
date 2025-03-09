@@ -144,12 +144,12 @@ void	Connection::respond(void)
 	if (response.header.empty())
 	{
 
+		response.connection = request.connection;
 		if (status_code >= 300)
 			response.connection = "close";
 
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 
-		response.connection = request.connection;
 
 		set_server_config();
 		response.server_config = server_config;
