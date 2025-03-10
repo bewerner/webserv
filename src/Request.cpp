@@ -85,14 +85,14 @@ bool	parse_header(Request& request, std::string& key, std::string& value, int& s
 		{
 			if (!std::all_of(value.begin(), value.end(), ::isdigit))
 				throw std::invalid_argument("Value can only contain digits");
-			request.content_length = std::stoul(key);
+			request.content_length = std::stoul(value);
 			// if (value_length > std::numeric_limits<unsigned int>::max())
 				// throw std::out_of_range("Value is greater than max unsigned int");
 			// request.content_length = static_cast<unsigned int>(value_length);
 		}
 		catch (std::invalid_argument &e)
 		{
-		std::cout << "------------------------------b" << std::endl;
+		std::cout << "------------------------------bbb " << e.what() << '>' << value << '<' << std::endl;
 			status_code = 400;
 			return (false);
 		}
