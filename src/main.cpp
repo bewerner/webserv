@@ -32,57 +32,6 @@ int	poll_servers(std::vector<Server>& servers)
 	return (poll(fds.data(), fds.size(), 1000));
 }
 
-LocationConfig	get_fallback_location(const ServerConfig& server_config)
-{
-	LocationConfig config;
-	config.path = "/";
-	config.root = server_config.root;
-	config.allow_methods = std::set<std::string>({"GET", "POST", "DELETE"});
-	config.autoindex = server_config.autoindex;
-	config.index = server_config.index;
-	config.client_max_body_size = server_config.client_max_body_size;
-	config.error_page = server_config.error_page;
-
-	return (config);
-}
-
-void	add_fallback_locations(std::vector<Server>& servers)
-{
-	for (Server& s : servers)
-	{
-		for (ServerConfig& c : s.conf)
-		{
-			bool has_fallback_location = false;
-			for (LocationConfig& l : c.locations)
-			{
-				if (l.path == "/")
-					has_fallback_location = true;
-			}
-			if (!has_fallback_location)
-				c.locations.insert(c.locations.end(), get_fallback_location(c));
-		}
-	}
-}
-
-void	expand_relative_roots(std::vector<Server>& servers)
-{
-	for (Server& s : servers)
-	{
-		for (ServerConfig& c : s.conf)
-		{
-			if (c.root.front() != '/')
-				c.root = std::filesystem::current_path().string() + '/' + c.root;
-			std::cout << "ROOT---------------------------------------------------" << c.root << std::endl;
-			for (LocationConfig& l : c.locations)
-			{
-				if (l.root.front() != '/')
-					l.root = std::filesystem::current_path().string() + '/' + l.root;
-				std::cout << "ROOT---------------------------------------------------" << l.root << std::endl;
-			}
-		}
-	}
-}
-
 int	main(int argc, char** argv)
 {
 	std::vector<Server> servers;
@@ -93,9 +42,6 @@ int	main(int argc, char** argv)
 	parser(servers, argc > 1 ? argv[1] : "webserver.conf");
 	if (servers.empty())
 		return EXIT_FAILURE;
-		
-	add_fallback_locations(servers); // TEMPORARY FUNCTION. should happen in parser.
-	expand_relative_roots(servers); // TEMPORARY FUNCTION. should happen in parser.
 
 	while (true)
 	{

@@ -183,7 +183,7 @@ void			printData(const std::vector<Server>& servers);
 in_addr			host_string_to_in_addr(const std::string& host);
 bool			isValidLocationKey(const std::string& key);
 bool			isValidServerKey(const std::string& key);
-bool			validateConfigurations(const std::vector<Server>& servers);
+bool			validateConfigurations(std::vector<Server>& servers);
 
 //init_sockets.cpp
 void			init_sockaddr(Server& server);
