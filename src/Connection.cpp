@@ -197,11 +197,12 @@ void	Connection::respond(void)
 		}
 		else
 		{
-			if (response.directory_listing)
-				response.generate_directory_listing(request, server->port);
-			else
+			if (response.str_body.empty())
 				response.generate_error_page(status_code);
 			buffer.insert(buffer.begin(), response.str_body.begin(), response.str_body.end());
+			// for (char c : buffer)
+			// 	std::cout << c;
+			// std::cout << std::endl;
 		}
 			
 		std::ostringstream header;

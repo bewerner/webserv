@@ -9,15 +9,6 @@
 // 	str = new_str;
 // }
 
-static void	normalize_path(std::string& path)
-{
-	size_t pos;
-	while ((pos = path.find("//")) != std::string::npos)
-	{
-		path.erase(path.begin() + pos);
-	}
-}
-
 bool	parse_start_line(Request& request , std::istringstream& iss_header, int& status_code)
 {
 	std::string	start_line;
@@ -64,11 +55,19 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	return (true);
 }
 
+static void	normalize_host(std::string& host) // removes ':port' portion from host if present
+{
+	size_t end = host.find(':');
+	if (end != std::string::npos)
+		host.resize(end);
+}
+
 bool	parse_header(Request& request, std::string& key, std::string& value, int& status_code)
 {
 	if (key == "host")
 	{
 		request.host = value;
+		normalize_host(request.host);
 	}
 	else if (key == "connection")
 	{

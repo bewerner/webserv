@@ -73,9 +73,21 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 	if (directory_request)
 	{
 		if (absolute_index) // request target is irrelevant -> search for root+index
+		{
 			response_target = config->root + config->index;
-		else
+			if (!std::filesystem::exists(response_target))
+				response_target = config->root;
+		}
+		else // index is relative file_index (for example index.html)
+		{
 			response_target = config->root + request_target + config->index;
+			if (!std::filesystem::exists(response_target))
+				response_target = config->root + request_target;
+			// else if (std::filesystem::is_directory(response_target))
+			// {
+
+			// }
+		}
 	}
 	else
 		response_target = config->root + request_target;
@@ -88,7 +100,10 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 	if (directory_request)
 	{
 		if (!std::filesystem::exists(response_target) || !std::filesystem::is_directory(response_target))
+		{
+			std::cout << "-------------------------------------++++ " << response_target << std::endl;
 			status_code = 404;
+		}
 		else if (location_config->autoindex)
 			generate_directory_listing(request, port);
 		else
@@ -98,14 +113,21 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 
 	if (std::filesystem::is_directory(response_target))
 	{
+		std::cout << "----------------------------------------------------XXXXXXX " << response_target << std::endl;
 		status_code = 301;
-		// location = "http://" + request.host + ':' + std::to_string(port) + response_target + '/';
-		location = "http://" + request.host + ':' + std::to_string(port) + request.request_target + '/';
+		location = response_target.substr(location_config->root.size()); // response target without root
+		location = "http://" + request.host + ':' + std::to_string(port) + location + '/';
+		// location = "http://" + request.host + ':' + std::to_string(port) + request.request_target + '/';
+		
+		normalize_path(location);
+		location.insert(location.begin() + 5, '/');
+		std::cout << "----------------------------------------------------location " << location << std::endl;
 		return ;
 	}
 
 	if (!std::filesystem::exists(response_target))
 	{
+		std::cout << "-------------------------------------++x++ " << response_target << std::endl;
 		status_code = 404;
 		return ;
 	}
@@ -243,46 +265,82 @@ void	Response::init_error_body(int& status_code, const Request& request, const u
 // 	}
 // }
 
+static std::string format_date_time(const std::filesystem::file_time_type& ftime)
+{
+	auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+	std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
+	std::tm tm = *std::gmtime(&cftime);
+
+	std::ostringstream oss;
+	oss << std::put_time(&tm, "%d-%b-%Y %H:%M");
+	return (oss.str());
+}
+
 void	Response::generate_directory_listing(const Request& request, const uint16_t port)
 {
+	(void)port;
+	std::cout << "generating directory listing" << std::endl;
 	str_body = "<html><head><meta charset=\"UTF-8\"><title>directory_listing_placeholder directory_listing_placeholder</title></head><body><center><h1>directory_listing_placeholder directory_listing_placeholder</h1></center><hr><center>🐢webserv🐢</center></body></html>\n";
 	
 	// std::string dir = body_path;
 	std::ostringstream oss_body;
-	oss_body	<< "<html><head>" << "\r\n"
-	<< "<meta http-equiv=\"content-type\" content=\"text/html; charset=windows-1252\"><title>Index of /</title></head>" << "\r\n"
-	<< "<body>" << "\r\n"
-	<< "<h1>Index of /</h1><hr><pre><a href=\"http://" << request.host << ':' << port << "/\">../</a>" << "\r\n";
+	oss_body	<< "<html>" << "\r\n"
+				<< "<head><title>Index of " << request.request_target << "</title></head>" << "\r\n"
+				<< "<body>" << "\r\n"
+				<< "<h1>Index of " << request.request_target << "</h1><hr><pre><a href=\"../\">../</a>" << "\r\n";
 
 	for (const auto& i : std::filesystem::directory_iterator(response_target))
 	{
 		if (!i.is_directory())
 			continue;
 		std::string filename = i.path().filename().string() + '/';
+		// std::string link = request.request_target.substr(1) + filename;
+		std::string link = filename;
+		// link.erase(link.begin());
+		if (filename.length() > 50)
+		{
+			filename.resize(47);
+			filename += "..>";
+		}
+		std::string date_time = format_date_time(i.last_write_time());
 		std::string filesize = "-";
-		oss_body	<< "<a href=\"http://" << request.host << '/' << filename << "\">" << filename << "</a>" << "    " << filesize << "\r\n";
+		std::string s1(51 - filename.size(), ' ');
+
+		oss_body	<< "<a href=\"" << link << "\">" << filename << "</a>" << s1 << date_time << ' ' << std::right << std::setw(19) << filesize << "\r\n";
 	}
 	for (const auto& i : std::filesystem::directory_iterator(response_target))
 	{
 		if (i.is_directory())
 			continue;
 		std::string filename = i.path().filename().string();
+		// std::string link = request.request_target.substr(1) + filename;
+		std::string link = filename;
+		// link.erase(link.begin());
+		if (filename.length() > 50)
+		{
+			filename.resize(47);
+			filename += "..>";
+		}
+		std::string date_time = format_date_time(i.last_write_time());
 		std::string filesize = std::to_string(i.file_size());
-		oss_body	<< "<a href=\"http://" << request.host << '/' << filename << "\">" << filename << "</a>" << "    " << filesize << "\r\n";
+		std::string s1(51 - filename.size(), ' ');
+		oss_body	<< "<a href=\"" << link << "\">" << filename << "</a>" << s1 << date_time << ' ' << std::right << std::setw(19) << filesize << "\r\n";
 	}
 
-	oss_body	<< "</pre><hr>\r\n\r\n</body></html>";
+	oss_body	<< "</pre><hr></body>\r\n</html>\r\n";
 	
 	str_body = oss_body.str();
 	content_length = std::to_string(str_body.length());
+	// std::cout << str_body << std::endl;
 }
 
 void	Response::generate_error_page(const int status_code)
 {
+	std::cout << "generating error page" << std::endl;
 	// static const std::string error_page_template = 
 	str_body = "<html>\r\n<head><meta charset=\"UTF-8\"><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>🐢webserv🐢</center>\r\n</body>\r\n</html>\r\n";
 	// str_body = "<html>\r\n<head><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>nginx/1.27.4</center>\r\n</body>\r\n</html>\r\n";
-	std::cout << str_body << std::endl;
+	// std::cout << str_body << std::endl;
 	content_length = std::to_string(str_body.length());
 }
 

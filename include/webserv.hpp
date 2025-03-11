@@ -80,7 +80,6 @@ struct Response
 	std::vector<char>		buffer;
 	std::string 			connection;
 
-	bool								directory_listing = false;
 	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
 
@@ -108,7 +107,7 @@ struct Connection
 
 	std::chrono::steady_clock::time_point	timeout;
 
-	short*			revents = nullptr;
+	short*				revents = nullptr;
 
 	std::vector<char>	buffer;
 
@@ -156,8 +155,8 @@ struct Server
 	std::list<Connection>							connections;
 	int												socket = -1;
 	sockaddr_in										sockaddr;
-	std::chrono::seconds							request_timeout = std::chrono::seconds(10);
-	std::chrono::seconds							response_timeout = std::chrono::seconds(10);
+	std::chrono::seconds							request_timeout = std::chrono::seconds(35);
+	std::chrono::seconds							response_timeout = std::chrono::seconds(35);
 
 	short*											revents;
 
@@ -190,6 +189,8 @@ void			init_sockaddr(Server& server);
 void			init_sockets(std::vector<Server>& servers);
 
 /************************************************/
+
+void	normalize_path(std::string& path);
 
 void	parse_request(Request& request, int& status_code);
 bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);
