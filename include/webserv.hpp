@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <ios>
 #include <string>
 #include <cstring>
 #include <stdexcept>
@@ -78,6 +79,7 @@ struct Response
 	std::string				content_length;
 	std::string				content_type = "application/octet-stream";
 	std::vector<char>		buffer;
+	std::string				transfer_encoding;
 	std::string 			connection;
 
 	std::string							str_body;

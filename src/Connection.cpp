@@ -137,7 +137,7 @@ void	Connection::receive(void)
 	}
 }
 
-std::string get_date()
+static std::string get_date()
 {
 	std::time_t now = std::time(nullptr);
 	std::tm gmt_tm = *std::gmtime(&now);
@@ -217,18 +217,21 @@ void	Connection::respond(void)
 
 		// response.connection = "close";
 		std::ostringstream header;
-		header		<< "HTTP/1.1 "			<< status_code << ' ' << response.status_text	<< "\r\n"
-					<< "Server: "			<< "webserv/1.0"								<< "\r\n"
-					<< "Date: "				<< get_date()									<< "\r\n"
-					<< "Content-Type: "		<< response.content_type						<< "\r\n"
-					<< "Content-Length: "	<< response.content_length						<< "\r\n";
+		header		<< "HTTP/1.1 "				<< status_code << ' ' << response.status_text	<< "\r\n"
+					<< "Server: "				<< "webserv/1.0"								<< "\r\n"
+					<< "Date: "					<< get_date()									<< "\r\n"
+					<< "Content-Type: "			<< response.content_type						<< "\r\n";
+		if (response.transfer_encoding.empty())
+			header	<< "Content-Length: "		<< response.content_length						<< "\r\n";
+		else
+			header	<< "Transfer-Encoding: "	<< response.transfer_encoding					<< "\r\n";
 		if (!response.location.empty())
-			header	<< "Location: "			<< response.location							<< "\r\n";
-		header		<< "Connection: "		<< response.connection							<< "\r\n";
+			header	<< "Location: "				<< response.location							<< "\r\n";
+		header		<< "Connection: "			<< response.connection							<< "\r\n";
 		header		<< "\r\n";
 		response.header = header.str();
 		buffer.insert(buffer.begin(), response.header.begin(), response.header.end());
-		
+
 		// debug
 		std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
 					<< header.str()

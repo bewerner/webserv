@@ -331,6 +331,14 @@ void	Response::generate_directory_listing(const Request& request, const uint16_t
 	str_body = oss_body.str();
 	content_length = std::to_string(str_body.length());
 	// std::cout << str_body << std::endl;
+
+	transfer_encoding = "chunked";
+	std::ostringstream oss;
+	oss << std::hex << str_body.length();
+	std::string chunk_size = oss.str() + "\r\n";
+
+	str_body.insert(str_body.begin(), chunk_size.begin(), chunk_size.end());
+	str_body.append("\r\n0\r\n\r\n");
 }
 
 void	Response::generate_error_page(const int status_code)
