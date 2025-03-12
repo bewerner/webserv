@@ -73,7 +73,7 @@ for DIR in $(ls -d */); do
 		echo "❌  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt"
 	fi
 
-	# rm -f "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"
+	rm -f "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"
 
 	SLEEP_TIME=0.2
 
