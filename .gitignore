@@ -1,6 +1,5 @@
 obj
 *.o
-.DS_Store
 *test*
 webserv
 no_read.html
@@ -10,3 +9,5 @@ no_read.html
 
 turtle_tester/*/logs
 turtle_tester/*/response
+
+.DS_Store
