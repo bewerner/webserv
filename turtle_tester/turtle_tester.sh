@@ -61,7 +61,7 @@ for DIR in $(ls -d */); do
 
 	# compare
 	grep -vE "^(Server: |Date: |Last-Modified: |ETag: |Accept-Ranges: )" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp" && mv "$DIR/response/nginx.txt.tmp" "$DIR/response/nginx.txt"
-	grep "" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp" && mv "$DIR/response/webserv.txt.tmp" "$DIR/response/webserv.txt"
+	grep -vE "^(Server: |Date: )" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp" && mv "$DIR/response/webserv.txt.tmp" "$DIR/response/webserv.txt"
 
 	grep -vE "^(Content-Length: |<head><title>.*?</title></head>|<hr><center>nginx.*?</center>)" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp"
 	grep -vE "^(Content-Length: |<head><meta charset=\"UTF-8\"><title>.*?</title></head>|<hr><center>🐢webserv🐢</center>)" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp"
