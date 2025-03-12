@@ -89,6 +89,7 @@ struct Response
 	void	set_response_target(std::string request_target, int& status_code);
 	void	init_body(int& status_code, const Request& request, const uint16_t port);
 	void	init_error_body(int& status_code, const Request& request, const uint16_t port);
+	void	create_header(const int status_code);
 	void	generate_directory_listing(const Request& request, const uint16_t port);
 	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);

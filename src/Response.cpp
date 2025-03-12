@@ -164,105 +164,37 @@ void	Response::init_error_body(int& status_code, const Request& request, const u
 	}
 }
 
-// nginx checks if request_target.back is '/'.
-// if it is not, then it will check if it is a directory.
-// if it is a directory, it will send 301 moved permanently
-// Location: http://<request.host>:<server.port>/<request_target>/
-// the '/' at the end indicating that it is a directory, not a file
 
-// void	Response::set_body_path(int& status_code, std::string& request_target, const Request& request, const Connection& connection)
-// {
-// 	if (status_code >= 300)
-// 	{
-// 		auto it = location_config->error_page.find(status_code);
-// 		if (it != location_config->error_page.end())
-// 			request_target = it->second;
-// 		else
-// 			return ;
-// 	}
-// 	body_path = location_config->root + request_target;
-// 	// if body_path[0] != '/'
-// 	// 		body_path = PWD + body_path;
+static std::string get_date()
+{
+	std::time_t now = std::time(nullptr);
+	std::tm gmt_tm = *std::gmtime(&now);
 
+	std::ostringstream date_stream;
+	date_stream << std::put_time(&gmt_tm, "%a, %d %b %Y %H:%M:%S GMT");
+	return (date_stream.str());
+}
 
-// 	bool directory_request = (request_target.back() == '/');
-// 	std::cout << "-----------------------------------------------------------------------" << directory_request << std::endl;
-	
-// 	std::cout << "XXXXXXXXXXXX body path: " << body_path << std::endl;
+void	Response::create_header(const int status_code)
+{
+	std::ostringstream oss;
+	oss			<< "HTTP/1.1 "				<< status_code << ' ' << status_text		<< "\r\n"
+				<< "Server: "				<< "webserv/1.0"							<< "\r\n"
+				<< "Date: "					<< get_date()								<< "\r\n"
+				<< "Content-Type: "			<< content_type								<< "\r\n";
+	if (transfer_encoding.empty())
+		oss		<< "Content-Length: "		<< content_length							<< "\r\n";
+	else
+		oss		<< "Transfer-Encoding: "	<< transfer_encoding						<< "\r\n";
+	if (!location.empty() && location.find("http://") == 0)
+		oss		<< "Location: "				<< location									<< "\r\n";
+	oss			<< "Connection: "			<< connection								<< "\r\n";
+	if (!location.empty() && location.find("http://") != 0)
+		oss		<< "Location: "				<< location									<< "\r\n";
+	oss			<< "\r\n";
 
-// 	if (!directory_request && std::filesystem::is_directory(body_path))
-// 	{
-// 		status_code = 301;
-// 		location = "http://" + request.host + ':' + std::to_string(connection.server->port) + request_target + '/';
-// 		std::cout << "XXXXXXXXXXXX setting location: " << location << std::endl;
-// 		return ;
-// 	}
-
-
-
-// 	if (directory_request)
-// 	{
-// 		if (std::filesystem::exists(body_path + location_config->index))
-// 		{
-// 			body_path += location_config->index;
-// 			// 302
-// 			directory_request = (body_path.back() == '/');
-// 			std::cout << "--------------------------------------------a" << std::endl;
-// 		}
-// 		else if (location_config->autoindex)
-// 		{
-// 			directory_listing = true;
-// 			std::cout << "--------------------------------------------b" << std::endl;
-// 		}
-// 		else
-// 		{
-// 			status_code = 404;
-// 			std::cout << "--------------------------------------------c" << std::endl;
-// 		}
-// 	}
-
-
-
-	// if (directory_request && std::filesystem::exists(body_path + location_config->index))
-	// {
-	// 	body_path += location_config->index;
-	// 	bool directory_request = (body_path.back() == '/');
-	// }
-
-	// if (!std::filesystem::exists(body_path))
-	// {
-	// 	if (directory_request)
-	// 	{
-	// 		if (location_config->autoindex)
-	// 			directory_listing = true;
-	// 		else
-	// 			status_code = 403; // directory index of <body_path> is forbidden
-	// 		return ;
-	// 	}
-	// 	status_code = 404;
-	// }
-
-
-
-
-	// std::ifstream file(body_path);
-	// if (!file)
-	// 	status_code = 403;
-	// if (!directory_request)
-	// {
-	// 	ifs_body = std::make_shared<std::ifstream>(body_path, std::ios::binary);
-	// 	if (!ifs_body->is_open())
-	// 	{
-	// 		status_code = 404;
-	// 		ifs_body.reset();
-	// 	}
-		// if (ifs_body->fail())
-		// {
-		// 	status_code = 403;
-		// 	ifs_body.reset();
-		// }
-// 	}
-// }
+	header = oss.str();
+}
 
 static std::string format_date_time(const std::filesystem::file_time_type& ftime)
 {

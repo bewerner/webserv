@@ -71,14 +71,6 @@ void	Connection::receive(void)
 		buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);						// append received bytes to buffer
 	}
 
-	// // debug
-	// std::cout << std::endl;
-	// std::cout << std::endl;
-	// for (char c : buffer)
-	// 	std::cout << c;
-	// std::cout << std::endl;
-	// std::cout << std::endl;
-
 	if (!request.header_received)
 	{
 		if (buffer.empty() || buffer.front() == '\xFF' || buffer.front() == '\x04')					// close without response (for example when pressing ctrl+c in telnet)
@@ -137,16 +129,6 @@ void	Connection::receive(void)
 	}
 }
 
-static std::string get_date()
-{
-	std::time_t now = std::time(nullptr);
-	std::tm gmt_tm = *std::gmtime(&now);
-
-	std::ostringstream date_stream;
-	date_stream << std::put_time(&gmt_tm, "%a, %d %b %Y %H:%M:%S GMT");
-	return (date_stream.str());
-}
-
 void	Connection::respond(void)
 {
 	std::cout << "   Sending response ->" << std::endl;
@@ -160,10 +142,9 @@ void	Connection::respond(void)
 
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 
-
 		set_server_config();
 		response.server_config = server_config;
-	
+
 		if (status_code < 300)
 			response.set_location_config(request.request_target);
 
@@ -181,60 +162,21 @@ void	Connection::respond(void)
 			response.status_text = "Moved Temporarily";
 		response.set_content_type();
 
-		// int tmp = status_code;
-		// response.set_body_path(status_code, request.request_target, request, *this);
-		// if (!response.ifs_body && !response.directory_listing && status_code != tmp)
-		// 	response.set_body_path(status_code, request.request_target, request, *this);
-		
-		// if (status_code < 300)
-		// 	response.set_body_path(status_code, request.request_target, request, *this);
-		// if (status_code >= 300)
-		// 	response.set_body_path(status_code, request.request_target, request, *this);
-		
-
 		if (response.ifs_body)
-		{
-			// response.ifs_body = std::make_shared<std::ifstream>(response.body_path, std::ios::binary);
-			if (!response.ifs_body || !response.ifs_body->is_open())
-			{
-				std::cout << "THIS SHOULD NEVER HAPPEN" << std::endl;
-				close = true;
-				return ;
-			}
-			std::cout << "XXXXXXXXXX" << std::endl;
 			response.content_length = std::to_string(std::filesystem::file_size(response.response_target));
-			std::cout << "XXXXXXXXXX" << std::endl;
-		}
 		else
 		{
 			if (response.str_body.empty())
 				response.generate_error_page(status_code);
 			buffer.insert(buffer.begin(), response.str_body.begin(), response.str_body.end());
-			// for (char c : buffer)
-			// 	std::cout << c;
-			// std::cout << std::endl;
 		}
 
-		// response.connection = "close";
-		std::ostringstream header;
-		header		<< "HTTP/1.1 "				<< status_code << ' ' << response.status_text	<< "\r\n"
-					<< "Server: "				<< "webserv/1.0"								<< "\r\n"
-					<< "Date: "					<< get_date()									<< "\r\n"
-					<< "Content-Type: "			<< response.content_type						<< "\r\n";
-		if (response.transfer_encoding.empty())
-			header	<< "Content-Length: "		<< response.content_length						<< "\r\n";
-		else
-			header	<< "Transfer-Encoding: "	<< response.transfer_encoding					<< "\r\n";
-		if (!response.location.empty())
-			header	<< "Location: "				<< response.location							<< "\r\n";
-		header		<< "Connection: "			<< response.connection							<< "\r\n";
-		header		<< "\r\n";
-		response.header = header.str();
+		response.create_header(status_code);
 		buffer.insert(buffer.begin(), response.header.begin(), response.header.end());
 
 		// debug
 		std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
-					<< header.str()
+					<< response.header
 					<< "------------------------------------------------------\n\n\n" << std::endl;
 	}
 
@@ -247,7 +189,6 @@ void	Connection::respond(void)
 	}
 
 	ssize_t sent = send(fd, buffer.data(), buffer.size(), 0);
-	// std::cout << "size: " << buffer.size() << " sent: " << sent << " on fd " << fd << " -> " << std::string(strerror(errno)) << std::endl; // debug
 	if (sent > 0)
 		buffer.erase(buffer.begin(), buffer.begin() + sent);
 
