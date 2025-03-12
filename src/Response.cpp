@@ -105,7 +105,7 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 			status_code = 404;
 		}
 		else if (location_config->autoindex)
-			generate_directory_listing(request, port);
+			generate_directory_listing(request);
 		else
 			status_code = 403;
 		return ;
@@ -207,79 +207,77 @@ static std::string format_date_time(const std::filesystem::file_time_type& ftime
 	return (oss.str());
 }
 
-void	Response::generate_directory_listing(const Request& request, const uint16_t port)
+static std::string	entry_listing(const std::filesystem::directory_entry& entry, const bool is_directory)
 {
-	(void)port;
+	std::string filename = entry.path().filename().string();
+	if (is_directory)
+		filename.append("/");
+	std::string link = filename;
+	size_t max_length = 50;
+	if (filename.length() > max_length)
+	{
+		filename.resize(max_length - 3);
+		filename.append("..&gt;");
+		max_length += 3;
+	}
+	std::string date_time = format_date_time(entry.last_write_time());
+	std::string filesize("-");
+	if (entry.is_regular_file())
+		filesize = std::to_string(entry.file_size());
+	std::string padding(max_length - filename.size(), ' ');
+	std::ostringstream oss;
+	oss << "<a href=\"" << link << "\">" << filename << "</a>" << padding << ' '<< date_time << ' ' << std::right << std::setw(19) << filesize << "\r\n";
+	return (oss.str());
+}
+
+void	Response::generate_directory_listing(const Request& request)
+{
 	std::cout << "generating directory listing" << std::endl;
 	str_body = "<html><head><meta charset=\"UTF-8\"><title>directory_listing_placeholder directory_listing_placeholder</title></head><body><center><h1>directory_listing_placeholder directory_listing_placeholder</h1></center><hr><center>🐢webserv🐢</center></body></html>\n";
 	
-	// std::string dir = body_path;
-	std::ostringstream oss_body;
-	oss_body	<< "<html>" << "\r\n"
+	std::ostringstream oss;
+	oss	<< "<html>" << "\r\n"
 				<< "<head><title>Index of " << request.request_target << "</title></head>" << "\r\n"
 				<< "<body>" << "\r\n"
 				<< "<h1>Index of " << request.request_target << "</h1><hr><pre><a href=\"../\">../</a>" << "\r\n";
 
-	for (const auto& i : std::filesystem::directory_iterator(response_target))
+	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(response_target))
 	{
-		if (!i.is_directory())
-			continue;
-		std::string filename = i.path().filename().string() + '/';
-		// std::string link = request.request_target.substr(1) + filename;
-		std::string link = filename;
-		// link.erase(link.begin());
-		if (filename.length() > 50)
-		{
-			filename.resize(47);
-			filename += "..>";
-		}
-		std::string date_time = format_date_time(i.last_write_time());
-		std::string filesize = "-";
-		std::string s1(51 - filename.size(), ' ');
-
-		oss_body	<< "<a href=\"" << link << "\">" << filename << "</a>" << s1 << date_time << ' ' << std::right << std::setw(19) << filesize << "\r\n";
+		if (entry.is_directory())
+			oss << entry_listing(entry, true);
 	}
-	for (const auto& i : std::filesystem::directory_iterator(response_target))
+	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(response_target))
 	{
-		if (i.is_directory())
-			continue;
-		std::string filename = i.path().filename().string();
-		// std::string link = request.request_target.substr(1) + filename;
-		std::string link = filename;
-		// link.erase(link.begin());
-		if (filename.length() > 50)
-		{
-			filename.resize(47);
-			filename += "..>";
-		}
-		std::string date_time = format_date_time(i.last_write_time());
-		std::string filesize = std::to_string(i.file_size());
-		std::string s1(51 - filename.size(), ' ');
-		oss_body	<< "<a href=\"" << link << "\">" << filename << "</a>" << s1 << date_time << ' ' << std::right << std::setw(19) << filesize << "\r\n";
+		if (!entry.is_directory())
+			oss << entry_listing(entry, false);
 	}
 
-	oss_body	<< "</pre><hr></body>\r\n</html>\r\n";
-	
-	str_body = oss_body.str();
-	content_length = std::to_string(str_body.length());
-	// std::cout << str_body << std::endl;
+	oss	<< "</pre><hr></body>\r\n</html>\r\n";
+	str_body = oss.str();
 
 	transfer_encoding = "chunked";
-	std::ostringstream oss;
-	oss << std::hex << str_body.length();
-	std::string chunk_size = oss.str() + "\r\n";
-
-	str_body.insert(str_body.begin(), chunk_size.begin(), chunk_size.end());
+	std::string chunk_size = (std::ostringstream{} << std::hex << str_body.length()).str() + "\r\n";
+	
+	str_body.insert(0, chunk_size);
 	str_body.append("\r\n0\r\n\r\n");
 }
 
 void	Response::generate_error_page(const int status_code)
 {
 	std::cout << "generating error page" << std::endl;
-	// static const std::string error_page_template = 
-	str_body = "<html>\r\n<head><meta charset=\"UTF-8\"><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>🐢webserv🐢</center>\r\n</body>\r\n</html>\r\n";
-	// str_body = "<html>\r\n<head><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>nginx/1.27.4</center>\r\n</body>\r\n</html>\r\n";
-	// std::cout << str_body << std::endl;
+
+	str_body = "<html>\r\n<meta charset=\"UTF-8\"><!--🐢-->\r\n<head><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>🐢webserv🐢</center>\r\n</body>\r\n</html>\r\n";
+	std::ostringstream oss;
+	oss	<<	"<html>"																			<<	"\r\n"
+		<<	"<meta charset=\"UTF-8\"><!--🐢-->"													<<	"\r\n"
+		<<	"<head><title>"	<<	status_code	<<	' '	<<	status_text	<<	"</title></head>"		<<	"\r\n"
+		<<	"<body>"																			<<	"\r\n"
+		<<	"<center><h1>"	<<	status_code	<<	' '	<<	status_text	<<	"</h1></center>"		<<	"\r\n"
+		<<	"<hr><center>"	<<	"🐢webserv🐢"	<<	"</center>"									<<	"\r\n"
+		<<	"</body>"																			<<	"\r\n"
+		<<	"</html>"																			<<	"\r\n";
+
+	str_body = oss.str();
 	content_length = std::to_string(str_body.length());
 }
 

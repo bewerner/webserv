@@ -63,8 +63,8 @@ for DIR in $(ls -d */); do
 	grep -vE "^(Last-Modified: |ETag: |Accept-Ranges: )" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp" && mv "$DIR/response/nginx.txt.tmp" "$DIR/response/nginx.txt"
 	grep "" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp" && mv "$DIR/response/webserv.txt.tmp" "$DIR/response/webserv.txt"
 
-	grep -vE "^(Server: |Date: |Content-Length: |<head><title>\d\d\d .*?</title></head>|<hr><center>nginx.*?</center>)" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp"
-	grep -vE "^(Server: |Date: |Content-Length: |<head><meta charset=\"UTF-8\"><title>.*?</title></head>|<hr><center>🐢webserv🐢</center>)" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp"
+	grep -vE "^(Server: |Date: |Content-Length: |<hr><center>nginx/\d.*?</center>\r$)" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp"
+	grep -vE "^(Server: |Date: |Content-Length: |<meta charset=\"UTF-8\"><!--🐢-->\r$|<hr><center>🐢webserv🐢</center>\r$)" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp"
 
 
 	if cmp -s "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"; then
@@ -73,7 +73,7 @@ for DIR in $(ls -d */); do
 		echo "❌  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt"
 	fi
 
-	rm -f "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"
+	# rm -f "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"
 
 	SLEEP_TIME=0.2
 
