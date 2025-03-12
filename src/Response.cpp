@@ -120,7 +120,6 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 		// location = "http://" + request.host + ':' + std::to_string(port) + request.request_target + '/';
 		
 		normalize_path(location);
-		location.insert(location.begin() + 5, '/');
 		std::cout << "----------------------------------------------------location " << location << std::endl;
 		return ;
 	}
