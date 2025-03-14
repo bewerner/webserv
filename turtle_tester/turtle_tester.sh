@@ -1,4 +1,5 @@
 #! /bin/bash
+set +m
 
 SLEEP_TIME=1
 
@@ -28,32 +29,36 @@ for DIR in $(ls -d */); do
 
 	# NGINX
 	nginx -c "$PWD/$DIR/conf.conf" -p $WEBSERV_DIR -g "daemon off;" 2> "$DIR/logs/nginx.txt" & NGINX_PID=$!
-	sleep $SLEEP_TIME;
-	if ! ps -p $NGINX_PID > /dev/null 2>&1; then
-		echo "❓  $(cat "$DIR/logs/nginx.txt")"
-		continue
-	fi
-	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc $(head -n 1 $DIR/request.txt) > $DIR/response/nginx.txt & NC_PID=$!
+	disown $NGINX_PID
+	sleep $SLEEP_TIME
+	{ tail -n +2 $DIR/request.txt; echo; echo; } | nc $(head -n 1 $DIR/request.txt) 2> /dev/null > $DIR/response/nginx.txt & NC_PID=$!
+	disown $NC_PID
 	sleep 0.1
 	kill $NC_PID 2> /dev/null
-	kill -SIGTERM $NGINX_PID
-	wait $NGINX_PID
+	if ! ps -p $NGINX_PID > /dev/null 2>&1; then
+		echo "💥  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
+		continue
+	fi
+	kill -SIGTERM $NGINX_PID 2> /dev/null
+	wait $NGINX_PID 2> /dev/null
 
 
 	# WEBSERV
 	cd $WEBSERV_DIR
 	./webserv "$TURTLE_DIR/$DIR/conf.conf" > /dev/null 2> "$TURTLE_DIR/$DIR/logs/webserv.txt" & WEBSERV_PID=$!
-	sleep $SLEEP_TIME;
+	disown $WEBSERV_PID
+	sleep $SLEEP_TIME
+	{ tail -n +2 $TURTLE_DIR/$DIR/request.txt; echo; echo; } | nc $(head -n 1 $TURTLE_DIR/$DIR/request.txt) 2> /dev/null > $TURTLE_DIR/$DIR/response/webserv.txt & NC_PID=$!
+	disown $NC_PID
+	sleep 0.1
+	kill $NC_PID 2> /dev/null
 	if ! ps -p $WEBSERV_PID > /dev/null 2>&1; then
-		echo "❓ $(cat "$TURTLE_DIR/$DIR/logs/webserv.txt")"
+		echo "💥  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
 		cd $TURTLE_DIR
 		continue
 	fi
-	{ tail -n +2 $TURTLE_DIR/$DIR/request.txt; echo; echo; } | nc $(head -n 1 $TURTLE_DIR/$DIR/request.txt) > $TURTLE_DIR/$DIR/response/webserv.txt & NC_PID=$!
-	sleep 0.1
-	kill $NC_PID 2> /dev/null
-	kill -SIGINT $WEBSERV_PID
-	wait $WEBSERV_PID
+	kill -SIGINT $WEBSERV_PID 2> /dev/null
+	wait $WEBSERV_PID 2> /dev/null
 	cd $TURTLE_DIR
 
 
@@ -68,14 +73,14 @@ for DIR in $(ls -d */); do
 
 
 	if cmp -s "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"; then
-		echo "✅  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt"
+		echo "✅  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
 	else
-		echo "❌  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt"
+		echo "❌  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
 	fi
 
 	# rm -f "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"
 
-	SLEEP_TIME=0.2
+	SLEEP_TIME=0.1
 
 done
 

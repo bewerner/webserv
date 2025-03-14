@@ -14,43 +14,17 @@ void	Response::set_location_config(const std::string& request_target)
 			}
 		}
 	}
-	// std::cout << "location config: \"" << location_config->path << "\"" << std::endl;
-	// if (match_length == 0)
-	// 	location_config = nullptr;
 	if (match_length == 0)
 		throw std::logic_error("this should never happen. investigate (in set_location_config function)");
 }
 
-// static LocationConfig	get_location_config(const ServerConfig* server_config, const LocationConfig* location_config)
-// {
-// 	if (location_config)
-// 		return (*location_config);
-// 	LocationConfig config;
-// 	config.path = "/";
-// 	config.root = server_config->root;
-// 	config.allow_methods = std::set<std::string>({"GET", "POST", "DELETE"});
-// 	config.autoindex = server_config->autoindex;
-// 	config.index = server_config->index;
-// 	config.client_max_body_size = server_config->client_max_body_size;
-// 	config.error_page = server_config->error_page;
-
-// 	return (config);
-// }
-
-// if directory request
-	// absolute index means request target is irrelevant -> search for root+index
-	// (directory index && absolute index) means request target and root are irrelevant -> jump to location matching index with index as request target
-
-
 void	Response::set_response_target(std::string request_target, int& status_code)
 {
-	// LocationConfig config = get_location_config(server_config, location_config);
 	const LocationConfig* config = location_config;
 
 	bool directory_request = (request_target.back() == '/');
 	bool absolute_index    = (config->index.front() == '/');
-	bool directory_index   = (config->index.back() == '/');
-
+	bool directory_index   = (config->index.back()  == '/');
 
 	for (size_t i = 0; directory_request && absolute_index && directory_index; i++) // request target and root are irrelevant -> jump to location matching index with index as request target
 	{
@@ -60,12 +34,11 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 			return ;
 		}
 		set_location_config(config->index);
-		// config = get_location_config(server_config, location_config);
 		config = location_config;
 		request_target = config->index;
 		directory_request = (request_target.back() == '/');
 		absolute_index    = (config->index.front() == '/');
-		directory_index   = (config->index.back() == '/');
+		directory_index   = (config->index.back()  == '/');
 		if (directory_request)
 			request_target.clear();
 	}
@@ -226,37 +199,34 @@ static std::string	entry_listing(const std::filesystem::directory_entry& entry, 
 		filesize = std::to_string(entry.file_size());
 	std::string padding(max_length - filename.size(), ' ');
 	std::ostringstream oss;
-	oss << "<a href=\"" << link << "\">" << filename << "</a>" << padding << ' '<< date_time << ' ' << std::right << std::setw(19) << filesize << "\r\n";
+	oss << "<a href=\"" << link << "\">" << filename << "</a>" << padding << ' '<< date_time << ' ' << std::right << std::setw(19) << filesize;
 	return (oss.str());
 }
 
 void	Response::generate_directory_listing(const Request& request)
 {
 	std::cout << "generating directory listing" << std::endl;
-	str_body = "<html><head><meta charset=\"UTF-8\"><title>directory_listing_placeholder directory_listing_placeholder</title></head><body><center><h1>directory_listing_placeholder directory_listing_placeholder</h1></center><hr><center>🐢webserv🐢</center></body></html>\n";
 	
 	std::ostringstream oss;
-	oss	<< "<html>" << "\r\n"
-				<< "<head><title>Index of " << request.request_target << "</title></head>" << "\r\n"
-				<< "<body>" << "\r\n"
-				<< "<h1>Index of " << request.request_target << "</h1><hr><pre><a href=\"../\">../</a>" << "\r\n";
-
+	oss	<< "<html>"																					<< "\r\n"
+		<< "<head><title>Index of " << request.request_target << "</title></head>"					<< "\r\n"
+		<< "<body>"																					<< "\r\n"
+		<< "<h1>Index of " << request.request_target << "</h1><hr><pre><a href=\"../\">../</a>"		<< "\r\n";
 	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(response_target))
 	{
 		if (entry.is_directory())
-			oss << entry_listing(entry, true);
+			oss << entry_listing(entry, true)														<< "\r\n";
 	}
 	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(response_target))
 	{
 		if (!entry.is_directory())
-			oss << entry_listing(entry, false);
+			oss << entry_listing(entry, false)														<< "\r\n";
 	}
-
-	oss	<< "</pre><hr></body>\r\n</html>\r\n";
+	oss	<< "</pre><hr></body>\r\n</html>"															<< "\r\n";
 	str_body = oss.str();
 
 	transfer_encoding = "chunked";
-	std::string chunk_size = (std::ostringstream{} << std::hex << str_body.length()).str() + "\r\n";
+	std::string chunk_size = (std::ostringstream{} << std::hex << str_body.length() << "\r\n").str();
 	
 	str_body.insert(0, chunk_size);
 	str_body.append("\r\n0\r\n\r\n");
