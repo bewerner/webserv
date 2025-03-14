@@ -15,7 +15,7 @@ void	Response::set_location_config(const std::string& request_target)
 		}
 	}
 	if (match_length == 0)
-		throw std::logic_error("this should never happen. investigate (in set_location_config function)");
+		throw std::logic_error("this should never happen. investigate (in set_location_config function). request_target: " + request_target);
 }
 
 void	Response::set_response_target(std::string request_target, int& status_code)
@@ -206,6 +206,9 @@ static std::string	entry_listing(const std::filesystem::directory_entry& entry, 
 void	Response::generate_directory_listing(const Request& request)
 {
 	std::cout << "generating directory listing" << std::endl;
+
+	std::map<std::string, std::filesystem::directory_entry> directories;
+	std::map<std::string, std::filesystem::directory_entry> non_directories;
 	
 	std::ostringstream oss;
 	oss	<< "<html>"																					<< "\r\n"
@@ -215,13 +218,14 @@ void	Response::generate_directory_listing(const Request& request)
 	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(response_target))
 	{
 		if (entry.is_directory())
-			oss << entry_listing(entry, true)														<< "\r\n";
+			directories.insert(std::make_pair(entry.path().filename().string(), entry));
+		else
+			non_directories.insert(std::make_pair(entry.path().filename().string(), entry));
 	}
-	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(response_target))
-	{
-		if (!entry.is_directory())
-			oss << entry_listing(entry, false)														<< "\r\n";
-	}
+	for (const auto& [filename, entry] : directories)
+		oss << entry_listing(entry, true)															<< "\r\n";
+	for (const auto& [filename, entry] : non_directories)
+		oss << entry_listing(entry, false)															<< "\r\n";
 	oss	<< "</pre><hr></body>\r\n</html>"															<< "\r\n";
 	str_body = oss.str();
 
