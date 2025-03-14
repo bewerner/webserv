@@ -192,8 +192,13 @@ void			init_sockaddr(Server& server);
 void			init_sockets(std::vector<Server>& servers);
 
 /************************************************/
+// src/
+/************************************************/
 
+//utils.cpp
 void	normalize_path(std::string& path);
+bool	collapse_absolute_path(std::string& path);
 
+//Request.cpp
 void	parse_request(Request& request, int& status_code);
 bool	parse_start_line(Request& request , std::istringstream& header, int& status_code);

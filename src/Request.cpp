@@ -38,6 +38,12 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 
 	request.request_target = request_target;
 	normalize_path(request.request_target);
+	if (!collapse_absolute_path(request.request_target))
+	{
+		std::cout << "------------------------------request target above root" << std::endl;
+		status_code = 400;
+		return (false);
+	}
 
 	// size_t	pos = start_line.find("HTTP");
 	// if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')
