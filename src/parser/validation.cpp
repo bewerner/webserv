@@ -38,12 +38,10 @@ void expand_relative_roots(std::vector<Server>& servers)
 		{
 			if (!c.root.empty() && c.root.front() != '/')
 				c.root = std::filesystem::current_path().string() + '/' + c.root;
-			std::cout << "ROOT---------------------------------------------------" << c.root << std::endl;
 			for (LocationConfig& l : c.locations)
 			{
 				if (!l.root.empty() && l.root.front() != '/')
 					l.root = std::filesystem::current_path().string() + '/' + l.root;
-				std::cout << "ROOT---------------------------------------------------" << l.root << std::endl;
 			}
 		}
 	}

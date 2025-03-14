@@ -21,8 +21,16 @@ void	init_sockets(std::vector<Server>& servers)
 			throw std::runtime_error("fcntl failed");
 
 		init_sockaddr(server);
-		if (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
-			throw std::runtime_error("Failed to bind to " + server.host_str + ':' + std::to_string(server.port) + ':' + std::string(strerror(errno)));
+
+		while (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)
+		for (size_t i = 0; bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0; i++)
+		{
+			if (i >= 5)
+				throw std::runtime_error("still could not bind()");
+			std::cerr << "bind() to " << server.host_str << ':' << server.port << " failed (" << strerror(errno) << ')' << std::endl;
+			sleep(1);
+		}
+
 		if (listen(server.socket, 1024) < 0)
 			throw std::runtime_error("Failed to listen on socket");
 		std::cout << "init " << server.host_str << ':' << server.port << std::endl;
