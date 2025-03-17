@@ -2,7 +2,7 @@
 
 # Webserv
 
-Webserv is a custom HTTP server implementation developed in C++17 inspired by nginx, created as part of the 42 school curriculum. This project involves building a web server from scratch that can handle HTTP requests, serve static websites, and execute CGI scripts.
+Webserv is a custom HTTP server implementation developed in C++17 inspired by nginx, created as part of the 42 school core curriculum. This project involves building a web server from scratch that can handle HTTP requests, serve static websites, and execute CGI scripts.
 
 ## Features
 
@@ -62,9 +62,7 @@ If no configuration file is provided, the server will use `webserver.conf`
 
 ## Testing
 
-### Automated Testing
-
-As a bonus and to help during development, I included a custom bash script tester that compares webserv responses with nginx responses.
+As a bonus and to help during development, I implemented a custom tester that compares webserv responses with nginx responses.
 
 The tester allows you to:
 
@@ -78,3 +76,5 @@ To run the tester, nginx needs to be installed on your system:
 ```bash
 ./turtle_tester/turtle_tester.sh
 ```
+
+Since we are developing on an old macOS version, the tester might not be perfectly compatible with other platforms out of the box.
