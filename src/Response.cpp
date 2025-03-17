@@ -296,7 +296,7 @@ void	Response::set_status_text(const int status_code)
 		{411, "Length Required"},
 		{412, "Precondition Failed"},
 		{413, "Content Too Large"},
-		{414, "URI Too Long"},
+		{414, "Request-URI Too Large"},
 		{415, "Unsupported Media Type"},
 		{416, "Range Not Satisfiable"},
 		{417, "Expectation Failed"},

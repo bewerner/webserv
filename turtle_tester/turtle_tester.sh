@@ -3,6 +3,9 @@ set +m
 
 SLEEP_TIME=1
 
+# Check if an argument (skip count) is provided
+SKIP_COUNT=${1:-0}  # Default to 0 if no argument is provided
+
 cd "$(dirname "$0")"
 TURTLE_DIR=$(pwd)
 
@@ -13,7 +16,15 @@ cd $TURTLE_DIR
 rm -rf */logs */response
 echo
 
+counter=0  # Initialize the counter
+
 for DIR in $(ls -d */); do
+
+    # Skip the first N directories based on SKIP_COUNT
+    if (( counter < SKIP_COUNT )); then
+        ((counter++))
+        continue
+    fi
 
 	DIR=${DIR%/}
 	echo -n "$DIR:  "

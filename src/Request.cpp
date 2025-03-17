@@ -14,6 +14,12 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	std::string	start_line;
 	std::getline(iss_header, start_line);
 
+	if (start_line.length() > 8191)
+	{
+		status_code = 414;
+		return (false);
+	}
+
 	// std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
 	std::regex	pattern(R"([A-Z]+ +\/\S* +HTTP\/\d+\.?\d{0,3} *)");
 	if (!std::regex_match(start_line, pattern))
