@@ -131,7 +131,7 @@ void	parse_request(Request& request, int& status_code)
 		std::regex	pattern(R"((\S+):\s*(\S+).*)");
 		if (!std::regex_match(line, match, pattern))
 		{
-			std::cout << "------------------------------MISMATCH" << std::endl;
+			std::cout << "------------------------------MISMATCH: >" << line << "<" << std::endl;
 			continue ;
 		}
 

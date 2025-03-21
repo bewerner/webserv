@@ -60,6 +60,7 @@ struct Request
 	std::string		host;
 	std::string 	connection = "keep-alive";
 	std::string 	content_type;
+	std::string 	transfer_encoding;
 	size_t			content_length = 0;
 };
 
@@ -81,9 +82,12 @@ struct Response
 	std::vector<char>		buffer;
 	std::string				transfer_encoding;
 	std::string 			connection;
+	bool					header_sent = false;
 
 	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
+
+	std::string							path_info;
 
 	void	set_location_config(const std::string& request_target);
 	void	set_response_target(std::string request_target, int& status_code);
@@ -94,6 +98,7 @@ struct Response
 	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
 	void	set_content_type(void);
+	void	extract_path_info(std::string& request_target);
 };
 
 struct Connection
@@ -120,6 +125,10 @@ struct Connection
 	void	set_server_config(void);
 	void	receive(void);
 	void	respond(void);
+
+	void	receive_header(void);
+	void	receive_body(void);
+	void	init_response(void);
 };
 
 struct LocationConfig
