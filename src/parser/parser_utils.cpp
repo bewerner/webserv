@@ -91,16 +91,20 @@ void printData(const std::vector<Server>& servers)
 			{
 				std::cout << locNum++ << ":\n";
 				std::cout << "  Path: " << loc.path << "\n";
-				std::cout << "  Document Root: " << loc.root << "\n";
+				if (!loc.root.empty())
+					std::cout << "  Document Root: " << loc.root << "\n";
+				if (!loc.alias.empty())
+					std::cout << "  Alias: " << loc.alias << "\n";
 				std::cout << "  Auto Index: " << (loc.autoindex ? "enabled" : "disabled") << "\n";
 				std::cout << "  Default File: " << loc.index << "\n";
 				std::cout << "  Upload Directory: " << loc.client_body_temp_path << "\n";
 				std::cout << "  CGI Handler Extension: " << loc.fastcgi_param << "\n";
 				std::cout << "  Max Client Body Size: " << loc.client_max_body_size << "\n";
-				std::cout << "  Allowed Methods: ";
-				for (const auto& method : loc.allow_methods)
+				std::cout << "  DAV Methods: ";
+				for (const auto& method : loc.dav_methods)
 					std::cout << method << " ";
 				std::cout << "\n";
+				
 				std::cout << "  Error Pages: \n";
 				for (const auto& [errorCode, errorPage] : loc.error_page)
 					std::cout << "    " << errorCode << ": " << errorPage << "\n";

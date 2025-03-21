@@ -126,7 +126,8 @@ struct LocationConfig
 {
 	std::string										path;
 	std::string										root;
-	std::set<std::string>							allow_methods;
+	std::string										alias;
+	std::set<std::string>							dav_methods;
 	bool											autoindex = false;
 	std::string										index;
 	std::string										client_body_temp_path;
@@ -185,7 +186,7 @@ void			printData(const std::vector<Server>& servers);
 in_addr			host_string_to_in_addr(const std::string& host);
 bool			isValidLocationKey(const std::string& key);
 bool			isValidServerKey(const std::string& key);
-bool			validateConfigurations(std::vector<Server>& servers);
+void			validateConfigurations(std::vector<Server>& servers);
 
 //init_sockets.cpp
 void			init_sockaddr(Server& server);

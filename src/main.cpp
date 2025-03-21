@@ -41,7 +41,15 @@ int	main(int argc, char** argv)
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGINT, sigint_handler);
 
-		parser(servers, argc > 1 ? argv[1] : "webserver.conf");
+		try 
+		{
+			parser(servers, argc > 1 ? argv[1] : "webserver.conf");
+		}
+		catch (const std::exception& e) 
+		{
+			std::cerr << "Parser error: " << e.what() << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (servers.empty())
 			return EXIT_FAILURE;
 
