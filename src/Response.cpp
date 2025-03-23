@@ -20,7 +20,6 @@ void	Response::set_location_config(const std::string& request_target)
 
 void Response::extract_path_info(std::string& request_target)
 {
-	std::cout << "HWLEKHRWEKLJRLWEKHRLWEKH" << std::endl;
 	path_info = request_target;
 	request_target.clear();
 	std::smatch match;
@@ -87,7 +86,31 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 		response_target = config->root + request_target;
 }
 
-void	Response::init_body(int& status_code, const Request& request, const uint16_t port)
+void	Response::init_cgi(int& status_code, char** envp)
+{
+	cgi.init_pipes();
+	cgi.fork();
+	cgi.setup_io();
+	if (cgi.pid != 0)
+		return ;
+
+	char* argv[2] = {response_target.data(), nullptr};
+	std::vector<char*> env_cgi;
+	for (size_t i = 0; envp[i]; i++)
+		env_cgi.push_back(envp[i]);
+	std::string env_path_info = "PATH_INFO=" + path_info;
+	if (!path_info.empty())
+		env_cgi.push_back(env_path_info.data());
+	
+
+	if (execve(response_target.c_str(), argv, env_cgi.data()) == -1)
+	{
+		status_code = 500;
+		exit(EXIT_FAILURE);
+	}
+}
+
+void	Response::init_body(int& status_code, const Request& request, const uint16_t port, char** envp)
 {
 	bool directory_request = (response_target.back() == '/');
 
@@ -125,11 +148,17 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 		return ;
 	}
 
-	//if cgi
-	// {
-		//	init cgi
-		//	return;
-	// }
+	// if (location_config->cgi)
+	if (true)
+	{
+		init_cgi(status_code, envp);
+		if (cgi.fail)
+		{
+			status_code = 500;
+			cgi = CGI();
+		}
+		return;
+	}
 
 	ifs_body = std::make_shared<std::ifstream>(response_target, std::ios::binary);
 	if (!ifs_body->is_open())
@@ -139,7 +168,7 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 	}
 }
 
-void	Response::init_error_body(int& status_code, const Request& request, const uint16_t port)
+void	Response::init_error_body(int& status_code, const Request& request, const uint16_t port, char** envp)
 {
 	if (server_config->error_page.find(status_code) != server_config->error_page.end())
 	{
@@ -148,7 +177,7 @@ void	Response::init_error_body(int& status_code, const Request& request, const u
 		{
 			set_location_config(response_target);
 			set_response_target(response_target, status_code);
-			init_body(status_code, request, port);
+			init_body(status_code, request, port, envp);
 		}
 		else
 		{

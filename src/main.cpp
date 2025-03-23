@@ -32,7 +32,7 @@ int	poll_servers(std::vector<Server>& servers)
 	return (poll(fds.data(), fds.size(), 1000));
 }
 
-int	main(int argc, char** argv)
+int	main(int argc, char** argv, char** envp)
 {
 	try // TEMPORARY TRY-CATCH BLOCK ONLY FOR TESTER PERFORMANCE
 	{
@@ -44,6 +44,10 @@ int	main(int argc, char** argv)
 		parser(servers, argc > 1 ? argv[1] : "webserver.conf");
 		if (servers.empty())
 			return EXIT_FAILURE;
+		for (Server& s : servers)
+		{
+			s.envp = envp;
+		}
 
 		while (true)
 		{

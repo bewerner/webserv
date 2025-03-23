@@ -90,8 +90,18 @@ bool	parse_header(Request& request, std::string& key, std::string& value, int& s
 	{
 		request.content_type = value;
 	}
+	else if (key == "transfer-encoding")
+	{
+		if (value != "chunked")
+		{
+			status_code = 501;
+			return (false);
+		}
+		request.transfer_encoding = value;
+	}
 	else if (key == "content-length")
 	{
+		request.content_length_specified = true;
 		try
 		{
 			if (!std::all_of(value.begin(), value.end(), ::isdigit))
@@ -153,4 +163,6 @@ void	parse_request(Request& request, int& status_code)
 		std::cout << "------------------------------c" << std::endl;
 		status_code = 400;
 	}
+	if (request.content_length_specified && !request.transfer_encoding.empty())
+		status_code = 501;
 }

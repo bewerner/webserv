@@ -62,12 +62,26 @@ struct Request
 	std::string 	content_type;
 	std::string 	transfer_encoding;
 	size_t			content_length = 0;
+	bool			content_length_specified = false;
 };
 
 struct ServerConfig;
 struct LocationConfig;
 struct Connection;
 struct Server;
+
+struct CGI
+{
+	int									pipe_into_cgi[2] = {-1, -1};
+	int									pipe_from_cgi[2] = {-1, -1};
+	pid_t								pid = -1;
+	bool								fail = false;
+
+	void	init_pipes(void);
+	void	fork(void);
+	void	setup_io(void);
+	~CGI(void);
+};
 
 struct Response
 {
@@ -84,6 +98,7 @@ struct Response
 	std::string 			connection;
 	bool					header_sent = false;
 
+	CGI									cgi;
 	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
 
@@ -91,14 +106,15 @@ struct Response
 
 	void	set_location_config(const std::string& request_target);
 	void	set_response_target(std::string request_target, int& status_code);
-	void	init_body(int& status_code, const Request& request, const uint16_t port);
-	void	init_error_body(int& status_code, const Request& request, const uint16_t port);
+	void	init_body(int& status_code, const Request& request, const uint16_t port, char** envp);
+	void	init_error_body(int& status_code, const Request& request, const uint16_t port, char** envp);
 	void	create_header(const int status_code);
 	void	generate_directory_listing(const Request& request);
 	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
+	void	init_cgi(int& status_code, char** envp);
 };
 
 struct Connection
@@ -169,6 +185,7 @@ struct Server
 	sockaddr_in										sockaddr;
 	std::chrono::seconds							request_timeout = std::chrono::seconds(35);
 	std::chrono::seconds							response_timeout = std::chrono::seconds(35);
+	char**									envp;
 
 	short*											revents;
 
