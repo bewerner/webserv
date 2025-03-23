@@ -237,23 +237,27 @@ void	Connection::respond(void)
 	if (using_cgi)
 	{
 		const size_t capacity = BUFFER_SIZE - buffer.size();
-		std::array<char, BUFFER_SIZE> tmp;
-		ssize_t received = read(response.cgi.pipe_from_cgi[0], &tmp, capacity);
-		// for (char c : tmp)
+		std::array<char, BUFFER_SIZE> buf;
+		ssize_t received = read(response.cgi.pipe_from_cgi[0], &buf, capacity);
+		if (!response.cgi_header_extracted)
+			response.extract_cgi_header(buf, received);
+		if (!response.cgi_header_extracted)
+			return ;
+		// for (char c : buf)
 		// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
 		//CREATE CHUNK HEAD
 		std::string chunk_size = (std::ostringstream{} << std::hex << received << "\r\n").str();
 		buffer.insert(buffer.end(), chunk_size.begin(), chunk_size.end());
-		buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + received);
+		buffer.insert(buffer.end(), buf.begin(), buf.begin() + received);
 		std::string chunk_end = "\r\n\r\n";
 		buffer.insert(buffer.end(), chunk_end.begin(), chunk_end.end());
 	}
 	else if (response.ifs_body && !response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
 	{
 		const size_t capacity = BUFFER_SIZE - buffer.size();
-		std::array<char, BUFFER_SIZE> tmp;
-		response.ifs_body->read(tmp.data(), capacity);
-		buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + response.ifs_body->gcount());
+		std::array<char, BUFFER_SIZE> buf;
+		response.ifs_body->read(buf.data(), capacity);
+		buffer.insert(buffer.end(), buf.begin(), buf.begin() + response.ifs_body->gcount());
 	}
 
 	ssize_t sent = send(fd, buffer.data(), buffer.size(), 0);

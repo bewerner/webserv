@@ -99,6 +99,8 @@ struct Response
 	bool					header_sent = false;
 
 	CGI									cgi;
+	bool								cgi_header_extracted = false;
+	std::string							cgi_header;
 	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
 
@@ -115,6 +117,7 @@ struct Response
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
 	void	init_cgi(int& status_code, char** envp);
+	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size);
 };
 
 struct Connection

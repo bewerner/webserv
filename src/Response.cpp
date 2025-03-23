@@ -259,6 +259,38 @@ static std::string	entry_listing(const std::filesystem::directory_entry& entry, 
 	return (oss.str());
 }
 
+void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size)
+{
+	cgi_header.insert(cgi_header.end(), buf.begin(), buf.begin() + size);
+	// debug
+	std::cout	<< "-----------------------xxxxxCGI-HEADER---------------------\n"
+				<< cgi_header
+				<< "------------------------------------------------------\n\n\n" << std::endl;
+	std::smatch match;
+	if (std::regex_match(cgi_header, match, std::regex(R"(([\s\S]*?)(\n\r?\n)([\s\S]*))")))
+	{
+		cgi_header_extracted = true;
+		cgi_header = match[1];
+		std::string body = match[3];
+
+		// debug
+		std::cout	<< "-----------------------CGI-HEADER---------------------\n"
+					<< cgi_header
+					<< "------------------------------------------------------\n\n\n" << std::endl;
+
+		for (size_t i = 0; i < body.length(); i++)
+			buf[i] = body[i];
+		size = body.length();
+		// debug
+		std::cout	<< "-----------------------CGI-BODY---------------------\n"
+					<< body
+					<< "------------------------------------------------------\n\n\n" << std::endl;
+		
+		//parse cgi header
+		//update response header
+	}
+}
+
 void	Response::generate_directory_listing(const Request& request)
 {
 	std::cout << "generating directory listing" << std::endl;
