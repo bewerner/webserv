@@ -18,6 +18,23 @@ void	Response::set_location_config(const std::string& request_target)
 		throw std::logic_error("this should never happen. investigate (in set_location_config function). request_target: " + request_target);
 }
 
+void Response::extract_path_info(std::string& request_target)
+{
+	std::cout << "HWLEKHRWEKLJRLWEKHRLWEKH" << std::endl;
+	path_info = request_target;
+	request_target.clear();
+	std::smatch match;
+
+	while (std::regex_match(path_info, match, std::regex(R"((/+[^/]*)(.*))")))
+	{
+		request_target.append(match[1]);
+		path_info = match[2];
+		std::cout << "cgi target: >" << request_target << "<   path_info: >" << path_info << "<" << std::endl;
+		if (!std::filesystem::exists(location_config->root + request_target) || !std::filesystem::is_directory(location_config->root + request_target))
+			break ;
+	}
+}
+
 void	Response::set_response_target(std::string request_target, int& status_code)
 {
 	const LocationConfig* config = location_config;
@@ -42,6 +59,10 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 		if (directory_request)
 			request_target.clear();
 	}
+
+	// if (config.cgi)
+	if (true)
+		extract_path_info(request_target);
 
 	if (directory_request)
 	{
@@ -103,6 +124,12 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 		status_code = 404;
 		return ;
 	}
+
+	//if cgi
+	// {
+		//	init cgi
+		//	return;
+	// }
 
 	ifs_body = std::make_shared<std::ifstream>(response_target, std::ios::binary);
 	if (!ifs_body->is_open())
