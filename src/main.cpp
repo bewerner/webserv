@@ -13,9 +13,27 @@ int	poll_servers(std::vector<Server>& servers)
 	static std::vector<pollfd> fds;
 	fds.clear();
 
-	size_t size = servers.size();
+	// size_t size = servers.size();
+	// for (Server& server : servers)
+	// 	size += server.connections.size();
+	
+	size_t size = 0;
 	for (Server& server : servers)
-		size += server.connections.size();
+	{
+		size++;
+		for (Connection& connection : server.connections)
+		{
+			size++;
+			CGI& cgi = connection.response.cgi;
+			if (cgi.pid >= 0 && !cgi.fail)
+			{
+				if (cgi.pipe_into_cgi[1] >= 0)
+					size++;
+				if (cgi.pipe_from_cgi[0] >= 0)
+					size++;
+			}
+		}
+	}
 	fds.reserve(size);
 
 	for (Server& server : servers)
@@ -26,6 +44,29 @@ int	poll_servers(std::vector<Server>& servers)
 		{
 			fds.emplace_back(pollfd{.fd = connection.fd, .events = connection.events, .revents = 0});
 			connection.revents = &fds.back().revents;
+			CGI& cgi = connection.response.cgi;
+			if (cgi.pid >= 0 && !cgi.fail)
+			{
+				if (cgi.pipe_into_cgi[1] >= 0)
+				{
+					fds.emplace_back(pollfd{.fd = cgi.pipe_into_cgi[1], .events = POLLOUT, .revents = 0});
+					cgi.revents_write_into_cgi = &fds.back().revents;
+				}
+				else
+					cgi.revents_write_into_cgi = nullptr;
+				if (cgi.pipe_from_cgi[0] >= 0)
+				{
+					fds.emplace_back(pollfd{.fd = cgi.pipe_from_cgi[0], .events = POLLIN, .revents = 0});
+					cgi.revents_read_from_cgi = &fds.back().revents;
+				}
+				else
+					cgi.revents_read_from_cgi = nullptr;
+			}
+			else
+			{
+				cgi.revents_write_into_cgi = nullptr;
+				cgi.revents_read_from_cgi = nullptr;
+			}
 		}
 	}
 
@@ -56,9 +97,10 @@ int	main(int argc, char** argv, char** envp)
 			{
 				for (Connection& connection : server.connections)
 				{
-					if (*connection.revents & POLLIN)
+					const CGI& cgi = connection.response.cgi;
+					if (*connection.revents & POLLIN || (cgi.revents_write_into_cgi && *cgi.revents_write_into_cgi & POLLOUT))
 						connection.receive();
-					else if (*connection.revents & POLLOUT)
+					else if (*connection.revents & POLLOUT || (cgi.revents_read_from_cgi && *cgi.revents_read_from_cgi & POLLIN))
 						connection.respond();
 					else if (*connection.revents & (POLLHUP | POLLERR))
 					{

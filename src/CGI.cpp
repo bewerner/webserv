@@ -5,24 +5,24 @@ void	CGI::init_pipes(void)
 	if (fail)
 		return ;
 
-	// if
-	// (
-	// 	pipe(pipe_into_cgi) < 0 ||
-	// 	pipe(pipe_from_cgi) < 0 ||
-	// 	fcntl(pipe_into_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
-	// 	fcntl(pipe_into_cgi[1], F_SETFL, O_NONBLOCK) < 0 ||
-	// 	fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
-	// 	fcntl(pipe_from_cgi[1], F_SETFL, O_NONBLOCK) < 0
-	// )
-	// 	fail = true;
-
-
 	if
 	(
 		pipe(pipe_into_cgi) < 0 ||
-		pipe(pipe_from_cgi) < 0
+		pipe(pipe_from_cgi) < 0 ||
+		fcntl(pipe_into_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
+		fcntl(pipe_into_cgi[1], F_SETFL, O_NONBLOCK) < 0 ||
+		fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
+		fcntl(pipe_from_cgi[1], F_SETFL, O_NONBLOCK) < 0
 	)
 		fail = true;
+
+
+	// if
+	// (
+	// 	pipe(pipe_into_cgi) < 0 ||
+	// 	pipe(pipe_from_cgi) < 0
+	// )
+	// 	fail = true;
 }
 
 void	CGI::fork(void)
@@ -76,4 +76,6 @@ CGI::~CGI(void)
 		close(pipe_from_cgi[0]);
 	if (pipe_from_cgi[1] >= 0)
 		close(pipe_from_cgi[1]);
+	if (pid >= 0 && waitpid(pid, NULL, WNOHANG) != pid)
+		kill(pid, SIGKILL);
 }

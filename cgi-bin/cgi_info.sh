@@ -1,13 +1,13 @@
 #! /bin/bash
 
-asdfasdfsf
+# asdfasdfsf
 echo "Content-Type: text/plain"
-echo "Connection: close"
+# echo "text/plain"
+# echo "Connection: close"
 echo "Content-Length: 99999999999999999999"
 echo "Transfer-Encoding: chunkedxxx"
 echo "asdf: asdf"
-echo ""
-echo "Status: 123 BANANA"
+echo "Status: 99 BANANA"
 echo ""
 echo "Hello world!"
 echo ""
@@ -16,4 +16,3 @@ echo ""
 echo "env:"
 echo "$(env)"
 echo ""
-exit 1

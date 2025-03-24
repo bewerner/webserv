@@ -72,10 +72,13 @@ struct Server;
 
 struct CGI
 {
-	int									pipe_into_cgi[2] = {-1, -1};
-	int									pipe_from_cgi[2] = {-1, -1};
-	pid_t								pid = -1;
-	bool								fail = false;
+	int		pipe_into_cgi[2] = {-1, -1};
+	int		pipe_from_cgi[2] = {-1, -1};
+	pid_t	pid = -1;
+	bool	fail = false;
+
+	short*	revents_write_into_cgi = nullptr;
+	short*	revents_read_from_cgi = nullptr;
 
 	void	init_pipes(void);
 	void	fork(void);
@@ -100,6 +103,7 @@ struct Response
 
 	CGI									cgi;
 	bool								cgi_header_extracted = false;
+	bool								cgi_EOF = false;
 	std::string							cgi_header;
 	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
@@ -117,7 +121,7 @@ struct Response
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
 	void	init_cgi(int& status_code, char** envp);
-	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size);
+	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code);
 };
 
 struct Connection

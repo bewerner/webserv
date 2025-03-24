@@ -60,7 +60,7 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 	}
 
 	// if (config.cgi)
-	if (true)
+	if (std::regex_match(request_target, std::regex("R(.*cgi-bin.*)"))) // TEMP
 		extract_path_info(request_target);
 
 	if (directory_request)
@@ -88,6 +88,7 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 
 void	Response::init_cgi(int& status_code, char** envp)
 {
+	(void)status_code;
 	cgi.init_pipes();
 	cgi.fork();
 	cgi.setup_io();
@@ -102,10 +103,18 @@ void	Response::init_cgi(int& status_code, char** envp)
 	if (!path_info.empty())
 		env_cgi.push_back(env_path_info.data());
 	
+	env_cgi.push_back(nullptr);
 
 	if (execve(response_target.c_str(), argv, env_cgi.data()) == -1)
 	{
-		status_code = 500;
+		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+		std::cerr << "          execve failed: " << response_target.c_str() << std::endl;
+		std::cerr << "               " << strerror(errno) << std::endl;
+		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 }
@@ -149,7 +158,7 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 	}
 
 	// if (location_config->cgi)
-	if (true)
+	if (std::regex_match(request.request_target, std::regex("R(.*cgi-bin.*)"))) // TEMP
 	{
 		init_cgi(status_code, envp);
 		if (cgi.fail)
@@ -223,6 +232,7 @@ void	Response::create_header(const int status_code)
 	oss			<< "\r\n";
 
 	header = oss.str();
+	header_sent = false;
 }
 
 static std::string format_date_time(const std::filesystem::file_time_type& ftime)
@@ -259,35 +269,38 @@ static std::string	entry_listing(const std::filesystem::directory_entry& entry, 
 	return (oss.str());
 }
 
-void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size)
+void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code)
 {
 	cgi_header.insert(cgi_header.end(), buf.begin(), buf.begin() + size);
-	// debug
-	std::cout	<< "-----------------------xxxxxCGI-HEADER---------------------\n"
-				<< cgi_header
-				<< "------------------------------------------------------\n\n\n" << std::endl;
 	std::smatch match;
-	if (std::regex_match(cgi_header, match, std::regex(R"(([\s\S]*?)(\n\r?\n)([\s\S]*))")))
+	if (std::regex_match(cgi_header, match, std::regex(R"(([\s\S]*?\n)(\r?\n)([\s\S]*))")))
 	{
 		cgi_header_extracted = true;
-		cgi_header = match[1];
 		std::string body = match[3];
-
-		// debug
-		std::cout	<< "-----------------------CGI-HEADER---------------------\n"
-					<< cgi_header
-					<< "------------------------------------------------------\n\n\n" << std::endl;
+		cgi_header = match[1];
 
 		for (size_t i = 0; i < body.length(); i++)
 			buf[i] = body[i];
 		size = body.length();
-		// debug
-		std::cout	<< "-----------------------CGI-BODY---------------------\n"
-					<< body
-					<< "------------------------------------------------------\n\n\n" << std::endl;
-		
+
+		//validate cgi header
+		if (!std::regex_match(cgi_header, std::regex(R"((.*\S+:.*\r?\n)*)", std::regex_constants::icase)))
+		{
+			cgi.fail = true;
+			status_code = 500;
+			status_text = "Internal Server Error";
+			generate_error_page(status_code);
+			connection = "close";
+			create_header(status_code);
+			std::cout << "xxxxxxxxxxxxxxxxxxxxWRONGxCGIxHEADERxFORMAT" << std::endl;
+		}
+
 		//parse cgi header
+		if (std::regex_search(cgi_header, match, std::regex(R"(^\s*Content-Type:.*?(\S+.*))", std::regex_constants::icase)))
+			content_type = match[1];
+
 		//update response header
+			create_header(status_code);
 	}
 }
 
@@ -341,6 +354,7 @@ void	Response::generate_error_page(const int status_code)
 
 	str_body = oss.str();
 	content_length = std::to_string(str_body.length());
+	transfer_encoding.clear();
 }
 
 void	Response::set_status_text(const int status_code)
