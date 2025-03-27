@@ -98,9 +98,9 @@ int	main(int argc, char** argv, char** envp)
 				for (Connection& connection : server.connections)
 				{
 					const CGI& cgi = connection.response.cgi;
-					if (*connection.revents & POLLIN || (cgi.revents_write_into_cgi && *cgi.revents_write_into_cgi & POLLOUT))
+					if (*connection.revents & POLLIN || cgi.pollout())
 						connection.receive();
-					else if (*connection.revents & POLLOUT || (cgi.revents_read_from_cgi && *cgi.revents_read_from_cgi & POLLIN))
+					else if (*connection.revents & POLLOUT || cgi.pollin())
 						connection.respond();
 					else if (*connection.revents & (POLLHUP | POLLERR))
 					{
@@ -119,10 +119,10 @@ int	main(int argc, char** argv, char** envp)
 			}
 
 			// debug
-			std::cout << "| ";
-			for (Server& server : servers)
-				std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
-			std::cout << std::endl;
+			// std::cout << "| ";
+			// for (Server& server : servers)
+			// 	std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
+			// std::cout << std::endl;
 		}
 	}
 	catch (const std::exception& e)

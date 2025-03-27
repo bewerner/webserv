@@ -207,7 +207,7 @@ void	Connection::receive(void)
 			init_response();
 	}
 
-	if (request.header_received && request.method == "POST" && response.cgi.revents_write_into_cgi && *response.cgi.revents_write_into_cgi & POLLOUT) //&& pipe POLLOUT
+	if (request.header_received && request.method == "POST" && response.cgi.revents_write_into_cgi && *response.cgi.revents_write_into_cgi & POLLOUT)
 		receive_body();
 
 	if (request.header_received && !request.received && request.method != "POST")
@@ -215,9 +215,7 @@ void	Connection::receive(void)
 
 	if (request.received)
 	{
-		if (response.cgi.pipe_into_cgi[1] >= 0)
-			::close(response.cgi.pipe_into_cgi[1]);
-		response.cgi.pipe_into_cgi[1] = -1;
+		response.cgi.done_writing_into_cgi();
 		std::cout << "   request fully received" << std::endl;
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 		events = POLLOUT;
@@ -226,13 +224,18 @@ void	Connection::receive(void)
 
 void	Connection::respond(void)
 {
+	// if (!response.cgi.header_extracted && !response.cgi.pollin())
+	// 	return ;
+	// if (!response.cgi.pollin() && buffer.empty())
+	// 	return ;
 	// sleep(1);
-	std::cout << "   Sending response ->" << std::endl;
-	if (response.cgi.pipe_from_cgi[0] >= 0 && response.cgi.revents_read_from_cgi)
-		std::cout << "   revents_read_from_cgi POLLIN:  " << (*response.cgi.revents_read_from_cgi & POLLIN) << std::endl;
-	else
-		std::cout << "   read from cgi is closed  " << std::endl;
-	std::cout << "   revents connection    POLLOUT: " << (*revents & POLLOUT) << std::endl;
+	// std::cout << "   Sending response ->" << std::endl;
+	// if (response.cgi.pipe_from_cgi[0] >= 0 && response.cgi.revents_read_from_cgi)
+	// 	std::cout << "   revents_read_from_cgi POLLIN:  " << (*response.cgi.revents_read_from_cgi & POLLIN) << std::endl;
+	// else
+	// 	std::cout << "   read from cgi is closed  " << std::endl;
+	// std::cout << "   revents connection    POLLOUT: " << (*revents & POLLOUT) << std::endl;
+	// std::cout << "   response header sent: " << response.header_sent << std::endl;
 
 	// if (response.header.empty())
 	if (!response.header_sent)
@@ -247,10 +250,12 @@ void	Connection::respond(void)
 		std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
 					<< response.header
 					<< "------------------------------------------------------\n\n\n" << std::endl;
+		// if (!response.str_body.empty())
+		// 	exit(0);
 	}
 
 	bool using_cgi = (response.cgi.pid >= 0 && !response.cgi.fail);
-	if (using_cgi && response.cgi.revents_read_from_cgi && *response.cgi.revents_read_from_cgi & POLLIN && !response.cgi_EOF)
+	if (using_cgi && response.cgi.pollin() && !response.cgi.eof)
 	{
 		std::cout << "<- reading from cgi" << std::endl;
 		const size_t capacity = BUFFER_SIZE - buffer.size();
@@ -262,10 +267,10 @@ void	Connection::respond(void)
 		// 	close = true;
 		// 	return ;
 		// }
-		if (!received && !response.cgi_header_extracted)
+		if (!received && !response.cgi.header_extracted)
 		{
 			std::cout << "   cgi reached EOF before receiving the cgi_header -> 500" << std::endl;
-			// response.cgi_EOF = true;
+			// response.cgi.eof = true;
 			response.cgi.fail = true;
 			status_code = 500;
 			response.status_text = "Internal Server Error";
@@ -274,33 +279,30 @@ void	Connection::respond(void)
 			response.create_header(status_code);
 			return ;
 		}
-		if (!received && response.cgi_header_extracted)
+		if (!received && response.cgi.header_extracted)
 		{
 			std::cout << "   cgi reached EOF" << std::endl;
-			response.cgi_EOF = true;
-			::close(response.cgi.pipe_from_cgi[0]);
-			response.cgi.pipe_from_cgi[0] = -1;
+			response.cgi.done_reading_from_cgi();
 		}
-		if (received > 0 && !response.cgi_header_extracted)
+		if (received > 0 && !response.cgi.header_extracted)
 		{
 			std::cout << "   extracting cgi header" << std::endl;
 			response.extract_cgi_header(buf, received, status_code);
-			if (response.cgi_header_extracted)
+			if (!response.cgi.fail && response.cgi.header_extracted)
 			{
 				std::cout << "   cgi header extracted" << std::endl;
 				buffer.clear();
 				buffer.insert(buffer.begin(), response.header.begin(), response.header.end());
+				response.header_sent = true;
 			}
-			if (!received)
+			if (!received || response.cgi.fail)
 				return ;
 		}
-		if (!response.cgi_header_extracted || response.cgi.fail)
-			return ;
 
 		// for (char c : buf)
 		// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
 		//CREATE CHUNK HEAD
-		if (response.cgi_header_extracted)
+		if (response.cgi.header_extracted)
 		{
 			std::cout << "   writing a chunk with " << received << " bytes into cgi body buffer" << std::endl;
 
@@ -309,8 +311,12 @@ void	Connection::respond(void)
 			buffer.insert(buffer.end(), buf.begin(), buf.begin() + received);
 			static const std::string chunk_end = "\r\n\r\n";
 			buffer.insert(buffer.end(), chunk_end.begin(), chunk_end.end());
+			if (!received)
+				response.cgi.done_reading_from_cgi();
 		}
 	}
+	if (using_cgi && (!response.cgi.header_extracted || response.cgi.fail))
+		return ;
 	// else if (using_cgi)
 	// 	return ;
 	else if (response.ifs_body && !response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
@@ -321,7 +327,7 @@ void	Connection::respond(void)
 		buffer.insert(buffer.end(), buf.begin(), buf.begin() + response.ifs_body->gcount());
 	}
 
-	if (using_cgi && !response.cgi_header_extracted)
+	if (using_cgi && !response.cgi.header_extracted)
 		return ;
 
 	if (*revents & POLLOUT)
@@ -336,13 +342,13 @@ void	Connection::respond(void)
 	// if (using_cgi)
 	// {
 	// 	if (waitpid(response.cgi.pid, NULL, WNOHANG) == response.cgi.pid)
-	// 		response.cgi_EOF = true;
+	// 		response.cgi.eof = true;
 	// }
-	std::cout << "using cgi:  " << using_cgi << std::endl;
-	std::cout << "cgi_EOF:    " << response.cgi_EOF << std::endl;
-	std::cout << "buffersize: " << buffer.size() << std::endl;
+	// std::cout << "using cgi:  " << using_cgi << std::endl;
+	// std::cout << "cgi.eof:    " << response.cgi.eof << std::endl;
+	// std::cout << "buffersize: " << buffer.size() << std::endl;
 
-	if ((!response.ifs_body || response.ifs_body->eof()) && (!using_cgi || response.cgi_EOF) && buffer.empty())
+	if ((!response.ifs_body || response.ifs_body->eof()) && (!using_cgi || response.cgi.eof) && buffer.empty())
 	{
 		std::cout << "✓ response fully sent  " << std::endl;
 		// exit(0);

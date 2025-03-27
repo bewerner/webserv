@@ -60,7 +60,7 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 	}
 
 	// if (config.cgi)
-	if (std::regex_match(request_target, std::regex("R(.*cgi-bin.*)"))) // TEMP
+	if (std::regex_match(request_target, std::regex(R"(.*cgi-bin.*)"))) // TEMP
 		extract_path_info(request_target);
 
 	if (directory_request)
@@ -92,6 +92,7 @@ void	Response::init_cgi(int& status_code, char** envp)
 	cgi.init_pipes();
 	cgi.fork();
 	cgi.setup_io();
+	// std::cout << "  FORKED (pid: " << cgi.pid << ")" << std::endl;
 	if (cgi.pid != 0)
 		return ;
 
@@ -158,8 +159,10 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 	}
 
 	// if (location_config->cgi)
-	if (std::regex_match(request.request_target, std::regex("R(.*cgi-bin.*)"))) // TEMP
+	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
+	if (std::regex_match(request.request_target, std::regex(R"(.*cgi-bin.*)"))) // TEMP
 	{
+	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
 		init_cgi(status_code, envp);
 		if (cgi.fail)
 		{
@@ -271,20 +274,24 @@ static std::string	entry_listing(const std::filesystem::directory_entry& entry, 
 
 void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code)
 {
-	cgi_header.insert(cgi_header.end(), buf.begin(), buf.begin() + size);
+	cgi.header.insert(cgi.header.end(), buf.begin(), buf.begin() + size);
 	std::smatch match;
-	if (std::regex_match(cgi_header, match, std::regex(R"(([\s\S]*?\n)(\r?\n)([\s\S]*))")))
+	if (std::regex_match(cgi.header, match, std::regex(R"(([\s\S]*?\n)(\r?\n)([\s\S]*))")))
 	{
-		cgi_header_extracted = true;
+		cgi.header_extracted = true;
 		std::string body = match[3];
-		cgi_header = match[1];
+		cgi.header = match[1];
+		// debug
+		std::cout	<< "--------------------cgiRESPONSE-HEADER--------------------\n"
+					<< cgi.header
+					<< "------------------------------------------------------\n\n\n" << std::endl;
 
 		for (size_t i = 0; i < body.length(); i++)
 			buf[i] = body[i];
 		size = body.length();
 
 		//validate cgi header
-		if (!std::regex_match(cgi_header, std::regex(R"((.*\S+:.*\r?\n)*)", std::regex_constants::icase)))
+		if (!std::regex_match(cgi.header, std::regex(R"((\s*?\S+:.*\r?\n)+|\s*)", std::regex_constants::icase)))
 		{
 			cgi.fail = true;
 			status_code = 500;
@@ -293,15 +300,26 @@ void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& s
 			connection = "close";
 			create_header(status_code);
 			std::cout << "xxxxxxxxxxxxxxxxxxxxWRONGxCGIxHEADERxFORMAT" << std::endl;
+			return ;
+		}
+		//parse cgi header
+		if (std::regex_search(cgi.header, match, std::regex(R"(^\s*Content-Type:.*?(\S+.*))", std::regex_constants::icase)))
+		{
+			content_type = match[1];
+			std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx found content type: " << content_type << std::endl;
 		}
 
-		//parse cgi header
-		if (std::regex_search(cgi_header, match, std::regex(R"(^\s*Content-Type:.*?(\S+.*))", std::regex_constants::icase)))
-			content_type = match[1];
-
 		//update response header
-			create_header(status_code);
+		create_header(status_code);
+		// debug
+		std::cout	<< "--------------------RESPONSE-HEADERx--------------------\n"
+					<< header
+					<< "------------------------------------------------------\n\n\n" << std::endl;
+		// if (cgi.fail)
+		// 	exit(0);
 	}
+	else
+		size = 0;
 }
 
 void	Response::generate_directory_listing(const Request& request)

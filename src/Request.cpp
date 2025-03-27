@@ -67,11 +67,14 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	return (true);
 }
 
-static void	normalize_host(std::string& host) // removes ':port' portion from host if present
+static void	normalize_host(std::string& host, std::string& port) // removes ':port' portion from host if present
 {
 	size_t end = host.find(':');
 	if (end != std::string::npos)
+	{
+		port = host.substr(end + 1);
 		host.resize(end);
+	}
 }
 
 bool	parse_header(Request& request, std::string& key, std::string& value, int& status_code)
@@ -79,7 +82,7 @@ bool	parse_header(Request& request, std::string& key, std::string& value, int& s
 	if (key == "host")
 	{
 		request.host = value;
-		normalize_host(request.host);
+		normalize_host(request.host, request.port);
 	}
 	else if (key == "connection")
 	{

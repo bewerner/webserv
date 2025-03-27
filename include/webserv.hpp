@@ -58,6 +58,7 @@ struct Request
 	std::string		request_target;
 	std::string		protocol;
 	std::string		host;
+	std::string		port;
 	std::string 	connection = "keep-alive";
 	std::string 	content_type;
 	std::string 	transfer_encoding;
@@ -76,6 +77,10 @@ struct CGI
 	int		pipe_from_cgi[2] = {-1, -1};
 	pid_t	pid = -1;
 	bool	fail = false;
+	bool	eof = false;
+	bool	header_extracted = false;
+
+	std::string				header;
 
 	short*	revents_write_into_cgi = nullptr;
 	short*	revents_read_from_cgi = nullptr;
@@ -83,7 +88,13 @@ struct CGI
 	void	init_pipes(void);
 	void	fork(void);
 	void	setup_io(void);
+	void	done_writing_into_cgi(void);
+	void	done_reading_from_cgi(void);
+	bool	pollin(void) const;
+	bool	pollout(void) const;
 	~CGI(void);
+private:
+	void	close(int fd);
 };
 
 struct Response
@@ -101,10 +112,11 @@ struct Response
 	std::string 			connection;
 	bool					header_sent = false;
 
+	// bool								cgi_header_extracted = false;
+	// bool								cgi_EOF = false;
+	// std::string							cgi_header;
+
 	CGI									cgi;
-	bool								cgi_header_extracted = false;
-	bool								cgi_EOF = false;
-	std::string							cgi_header;
 	std::string							str_body;
 	std::shared_ptr<std::ifstream>		ifs_body;
 

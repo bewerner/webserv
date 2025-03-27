@@ -43,16 +43,12 @@ void	CGI::setup_io(void)
 	if (pid != 0) // in parent process
 	{
 		close(pipe_into_cgi[0]);
-		pipe_into_cgi[0] = -1;
 		close(pipe_from_cgi[1]);
-		pipe_from_cgi[1] = -1;
 	}
 	else // in child process
 	{
 		close(pipe_into_cgi[1]);
-		pipe_into_cgi[1] = -1;
 		close(pipe_from_cgi[0]);
-		pipe_from_cgi[0] = -1;
 		if (dup2(pipe_into_cgi[0], STDIN_FILENO) < 0)
 			fail = true;
 		if (fail)
@@ -68,14 +64,38 @@ void	CGI::setup_io(void)
 
 CGI::~CGI(void)
 {
-	if (pipe_into_cgi[0] >= 0)
-		close(pipe_into_cgi[0]);
-	if (pipe_into_cgi[1] >= 0)
-		close(pipe_into_cgi[1]);
-	if (pipe_from_cgi[0] >= 0)
-		close(pipe_from_cgi[0]);
-	if (pipe_from_cgi[1] >= 0)
-		close(pipe_from_cgi[1]);
+	close(pipe_into_cgi[0]);
+	close(pipe_into_cgi[1]);
+	close(pipe_from_cgi[0]);
+	close(pipe_from_cgi[1]);
 	if (pid >= 0 && waitpid(pid, NULL, WNOHANG) != pid)
 		kill(pid, SIGKILL);
+}
+
+void	CGI::done_writing_into_cgi(void)
+{
+	close(pipe_into_cgi[1]);
+}
+
+void	CGI::done_reading_from_cgi(void)
+{
+	close(pipe_from_cgi[0]);
+	eof = true;
+}
+
+bool	CGI::pollin(void) const
+{
+	return (!fail && revents_read_from_cgi != nullptr && *revents_read_from_cgi & POLLIN);
+}
+
+bool	CGI::pollout(void) const
+{
+	return (!fail && revents_write_into_cgi != nullptr && *revents_write_into_cgi & POLLOUT);
+}
+
+void	CGI::close(int fd)
+{
+	if (fd >=0)
+		::close(fd);
+	fd = -1;
 }
