@@ -100,13 +100,13 @@ void	Connection::receive_header(void)
 		request.header.resize(found + 1);														// resize the header to end with \n
 		buffer.erase(buffer.begin(), buffer.begin() + (buffer.size() - body_bytes));			// remove the header bytes from the buffer so only body bytes remain
 		parse_request(request, status_code);
-		request.received = true; // TEMP
+		request.header_received = true; // TEMP
 	}
 	else
 		buffer.clear();
 
 	// debug
-	if (request.received)
+	if (request.header_received || request.received)
 	{
 		std::cout	 << "--------------------REQUEST-HEADER--------------------\n"
 					 << request.header
@@ -116,7 +116,7 @@ void	Connection::receive_header(void)
 
 void	Connection::init_response(void)
 {
-	std::cout << "   header fully received" << std::endl;
+	// std::cout << "   header fully received" << std::endl;
 	std::cout << "   init response" << std::endl;
 
 	response.connection = request.connection;
@@ -135,9 +135,9 @@ void	Connection::init_response(void)
 		response.set_response_target(request.request_target, status_code);
 	// or here?
 	if (status_code < 300)
-		response.init_body(status_code, request, server->port, server->envp);
+		response.init_body(status_code, request, response, *server, server->envp);
 	if (status_code >= 300)
-		response.init_error_body(status_code, request, server->port, server->envp);
+		response.init_error_body(status_code, request, *server, server->envp);
 	if (!status_code)
 		status_code = 200;
 
@@ -167,36 +167,75 @@ void	Connection::init_response(void)
 void	Connection::receive_body(void)
 {
 	std::cout  << "   forwarding body to cgi -->" << std::endl;
+	std::cout  << "   cgi listening?: " << response.cgi.pollout() << std::endl;
+
 
 	//UNCHUNK CHUNKED BODY HERE
 
 	// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxRECEIVExBODYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
-	ssize_t sent = write(response.cgi.pipe_into_cgi[1], buffer.data(), buffer.size());
+	size_t size = std::min(buffer.size(), request.remaining_bytes);
+	ssize_t sent = write(response.cgi.pipe_into_cgi[1], buffer.data(), size);
+	if (sent == -1)
+	{
+		std::cout << "write to cgi FAIL" << std::endl;
+	}
+	if (sent == -1 && !response.cgi.is_running())
+	{
+		std::cout << "write to cgi FAIL" << std::endl;
+		response.cgi.fail = true;
+		request.received = true;
+		status_code = 500;
+		return ;
+	}
 	if (sent > 0)
+	{
+		request.remaining_bytes -= sent;
 		buffer.erase(buffer.begin(), buffer.begin() + sent);
-	
+	}
+	std::cout  << "   --> sent " << sent << " bytes to cgi: " << strerror(errno) << std::endl;
+
+	std::cout  << "remaining_bytes " << request.remaining_bytes << "     buffer size: " << buffer.size() << std::endl;
+
 	if (request.remaining_bytes == 0 && buffer.empty())
 	{
+		response.cgi.done_writing_into_cgi();
 		request.received = true;
+		std::cout << "done writing into cgi" << std::endl;
+		// exit (0);
 	}
 }
 
 void	Connection::receive(void)
 {
+	std::cout << "<- connection receive" << std::endl;
+	std::cout << "   content length: " << request.content_length << std::endl;
+	std::cout << "   remaining bytes: " << request.remaining_bytes << std::endl;
+	std::cout << "   buffer size: " << buffer.size() << std::endl;
+	std::cout << "   listening to client?: ";
+	if (events == POLLIN)
+		std::cout << "yes" << std::endl;
+	else
+		std::cout << "no" << std::endl;
+	std::cout << "   client speaking?: " << (*revents & POLLIN) << std::endl;
 	// sleep(1);
 
-	if (buffer.size() < BUFFER_SIZE)																// only receive new bytes if there is space in the buffer
+	if (buffer.size() < BUFFER_SIZE && *revents & POLLIN)																// only receive new bytes if there is space in the buffer
 	{
 		size_t capacity = BUFFER_SIZE - buffer.size();
-		if (request.header_received && request.content_length_specified)
-			capacity = std::min(capacity, request.content_length);									// limit capacity by content length specified in header
+		// if (request.header_received && request.content_length_specified)
+		// 	capacity = std::min(capacity, request.remaining_bytes);									// limit capacity by content length specified in header
 		if (capacity)
 		{
 			std::array<char, BUFFER_SIZE> tmp;
-			ssize_t	bytes_received = recv(fd, tmp.data(), BUFFER_SIZE - buffer.size(), 0);				// try to receive as many bytes as fit in the buffer
-			request.remaining_bytes -= bytes_received;
-			// error check
-			buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);						// append received bytes to buffer
+			ssize_t	bytes_received = recv(fd, tmp.data(), capacity, 0);				// try to receive as many bytes as fit in the buffer
+			std::cout << "   received from client: " << bytes_received << std::endl;
+			std::cout << "   received from client: " << strerror(errno) << std::endl;
+			if (bytes_received > 0)
+			{
+				// if (request.header_received && request.content_length_specified)
+				// 	request.remaining_bytes -= bytes_received;
+				buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);						// append received bytes to buffer
+			}
 		}
 	}
 
@@ -207,11 +246,24 @@ void	Connection::receive(void)
 			init_response();
 	}
 
-	if (request.header_received && request.method == "POST" && response.cgi.revents_write_into_cgi && *response.cgi.revents_write_into_cgi & POLLOUT)
+	// std::cout << "\n\n\nheader received: " << request.header_received << "    method: " << request.method << "     pollout: " << response.cgi.pollout() << std::endl << std::endl << std::endl;
+
+	if (!buffer.empty() && request.header_received && request.method == "POST" && response.cgi.pollout())
 		receive_body();
+	if (!request.received && request.header_received && request.method == "POST" && !response.cgi.is_running())
+	{
+		response.cgi.fail = true;
+		status_code = 500;
+		init_response();
+		request.received = true;
+	}
 
 	if (request.header_received && !request.received && request.method != "POST")
+	{
+		std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXsettingtrue";
 		request.received = true;
+	}
+
 
 	if (request.received)
 	{
@@ -219,6 +271,7 @@ void	Connection::receive(void)
 		std::cout << "   request fully received" << std::endl;
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;
 		events = POLLOUT;
+		// exit(0);
 	}
 }
 
@@ -229,7 +282,7 @@ void	Connection::respond(void)
 	// if (!response.cgi.pollin() && buffer.empty())
 	// 	return ;
 	// sleep(1);
-	// std::cout << "   Sending response ->" << std::endl;
+	std::cout << "   Sending response ->" << std::endl;
 	// if (response.cgi.pipe_from_cgi[0] >= 0 && response.cgi.revents_read_from_cgi)
 	// 	std::cout << "   revents_read_from_cgi POLLIN:  " << (*response.cgi.revents_read_from_cgi & POLLIN) << std::endl;
 	// else
@@ -344,15 +397,17 @@ void	Connection::respond(void)
 	// 	if (waitpid(response.cgi.pid, NULL, WNOHANG) == response.cgi.pid)
 	// 		response.cgi.eof = true;
 	// }
-	// std::cout << "using cgi:  " << using_cgi << std::endl;
-	// std::cout << "cgi.eof:    " << response.cgi.eof << std::endl;
-	// std::cout << "buffersize: " << buffer.size() << std::endl;
+	std::cout << "using cgi:  " << using_cgi << std::endl;
+	std::cout << "cgi.eof:    " << response.cgi.eof << std::endl;
+	std::cout << "buffersize: " << buffer.size() << std::endl;
+	std::cout << "pollout: "    << (*revents & POLLOUT) << std::endl;
 
 	if ((!response.ifs_body || response.ifs_body->eof()) && (!using_cgi || response.cgi.eof) && buffer.empty())
 	{
 		std::cout << "✓ response fully sent  " << std::endl;
+		std::cout << "✓ close: " << close << std::endl;
 		// exit(0);
-		// if (response.connection != "keep-alive")
+		if (response.connection != "keep-alive")
 			close = true;
 
 		events = POLLIN;
@@ -361,5 +416,6 @@ void	Connection::respond(void)
 		buffer.clear();
 		timeout = std::chrono::steady_clock::now() + server->request_timeout;
 		status_code = 0;
+		std::cout << "✓ close: " << close << std::endl;
 	}
 }

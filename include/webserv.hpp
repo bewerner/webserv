@@ -45,6 +45,13 @@
 // #define BUFFER_SIZE (size_t)2999999
 // #define BUFFER_SIZE (size_t)1
 
+struct Request;
+struct Response;
+struct ServerConfig;
+struct LocationConfig;
+struct Connection;
+struct Server;
+
 struct Request
 {
 	std::string		header;
@@ -55,6 +62,7 @@ struct Request
 	bool			startline_parsed = false;
 
 	std::string		method;
+	std::string		URI;
 	std::string		request_target;
 	std::string		protocol;
 	std::string		host;
@@ -62,14 +70,12 @@ struct Request
 	std::string 	connection = "keep-alive";
 	std::string 	content_type;
 	std::string 	transfer_encoding;
+	std::string		user_agent;
+	std::string		referer;
+	std::string		origin;
 	size_t			content_length = 0;
 	bool			content_length_specified = false;
 };
-
-struct ServerConfig;
-struct LocationConfig;
-struct Connection;
-struct Server;
 
 struct CGI
 {
@@ -88,13 +94,15 @@ struct CGI
 	void	init_pipes(void);
 	void	fork(void);
 	void	setup_io(void);
+	void	exec(char** envp, const Server& server, const Request& request, const Response& response);
 	void	done_writing_into_cgi(void);
 	void	done_reading_from_cgi(void);
 	bool	pollin(void) const;
 	bool	pollout(void) const;
+	bool	is_running(void) const;
 	~CGI(void);
 private:
-	void	close(int fd);
+	void	close(int& fd);
 };
 
 struct Response
@@ -107,6 +115,7 @@ struct Response
 	std::string				location;
 	std::string				content_length;
 	std::string				content_type = "application/octet-stream";
+	std::string				server = "webserv/1.0";
 	std::vector<char>		buffer;
 	std::string				transfer_encoding;
 	std::string 			connection;
@@ -124,15 +133,15 @@ struct Response
 
 	void	set_location_config(const std::string& request_target);
 	void	set_response_target(std::string request_target, int& status_code);
-	void	init_body(int& status_code, const Request& request, const uint16_t port, char** envp);
-	void	init_error_body(int& status_code, const Request& request, const uint16_t port, char** envp);
+	void	init_body(int& status_code, const Request& request, const Response& response, const Server& server, char** envp);
+	void	init_error_body(int& status_code, const Request& request, const Server& server, char** envp);
 	void	create_header(const int status_code);
 	void	generate_directory_listing(const Request& request);
 	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
-	void	init_cgi(int& status_code, char** envp);
+	void	init_cgi(int& status_code, char** envp, const Server& server, const Request& request, const Response& response);
 	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code);
 };
 
@@ -184,7 +193,7 @@ struct ServerConfig
 	in_addr											host;
 	std::string										host_str;
 	uint16_t										port = 80;
-	std::string										root = std::filesystem::current_path().string() + "/html/";
+	std::string										root = std::filesystem::current_path().string() + "/html";
 	std::string										index = "index.html";
 	std::map<int, std::string>						error_page;
 	size_t											client_max_body_size = 0;

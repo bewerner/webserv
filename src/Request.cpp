@@ -9,6 +9,17 @@
 // 	str = new_str;
 // }
 
+static void	decode_URI(std::string& URI)
+{
+	size_t pos;
+	if ((pos = URI.find("#")) != std::string::npos)
+		URI.resize(pos);
+	while ((pos = URI.find("%20")) != std::string::npos)
+		URI.replace(pos, 3, " ");
+	while ((pos = URI.find("%2F")) != std::string::npos)
+		URI.replace(pos, 3, "/");
+}
+
 bool	parse_start_line(Request& request , std::istringstream& iss_header, int& status_code)
 {
 	std::string	start_line;
@@ -42,7 +53,9 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	}
 	request.method = method;
 
+	request.URI = request_target;
 	request.request_target = request_target;
+	decode_URI(request.request_target);
 	normalize_path(request.request_target);
 	if (!collapse_absolute_path(request.request_target))
 	{
@@ -84,6 +97,18 @@ bool	parse_header(Request& request, std::string& key, std::string& value, int& s
 		request.host = value;
 		normalize_host(request.host, request.port);
 	}
+	if (key == "user-agent")
+	{
+		request.user_agent = value;
+	}
+	if (key == "referer")
+	{
+		request.referer = value;
+	}
+	if (key == "origin")
+	{
+		request.origin = value;
+	}
 	else if (key == "connection")
 	{
 		if (value == "close" || value == "keep-alive")
@@ -110,6 +135,7 @@ bool	parse_header(Request& request, std::string& key, std::string& value, int& s
 			if (!std::all_of(value.begin(), value.end(), ::isdigit))
 				throw std::invalid_argument("Value can only contain digits");
 			request.content_length = std::stoul(value);
+			request.remaining_bytes = request.content_length;
 			// if (value_length > std::numeric_limits<unsigned int>::max())
 				// throw std::out_of_range("Value is greater than max unsigned int");
 			// request.content_length = static_cast<unsigned int>(value_length);
@@ -141,7 +167,7 @@ void	parse_request(Request& request, int& status_code)
 	{
 		// std::regex	pattern(R"(\S+:\s*(\S+\s*)+)");
 		std::smatch match;
-		std::regex	pattern(R"((\S+):\s*(\S+).*)");
+		std::regex	pattern(R"((\S+):\s*(\S+.*?)\s*)");
 		if (!std::regex_match(line, match, pattern))
 		{
 			std::cout << "------------------------------MISMATCH: >" << line << "<" << std::endl;

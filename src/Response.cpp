@@ -86,41 +86,16 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 		response_target = config->root + request_target;
 }
 
-void	Response::init_cgi(int& status_code, char** envp)
+void	Response::init_cgi(int& status_code, char** envp, const Server& server, const Request& request, const Response& response)
 {
 	(void)status_code;
 	cgi.init_pipes();
 	cgi.fork();
 	cgi.setup_io();
-	// std::cout << "  FORKED (pid: " << cgi.pid << ")" << std::endl;
-	if (cgi.pid != 0)
-		return ;
-
-	char* argv[2] = {response_target.data(), nullptr};
-	std::vector<char*> env_cgi;
-	for (size_t i = 0; envp[i]; i++)
-		env_cgi.push_back(envp[i]);
-	std::string env_path_info = "PATH_INFO=" + path_info;
-	if (!path_info.empty())
-		env_cgi.push_back(env_path_info.data());
-	
-	env_cgi.push_back(nullptr);
-
-	if (execve(response_target.c_str(), argv, env_cgi.data()) == -1)
-	{
-		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-		std::cerr << "          execve failed: " << response_target.c_str() << std::endl;
-		std::cerr << "               " << strerror(errno) << std::endl;
-		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	cgi.exec(envp, server, request, response);
 }
 
-void	Response::init_body(int& status_code, const Request& request, const uint16_t port, char** envp)
+void	Response::init_body(int& status_code, const Request& request, const Response& response, const Server& server, char** envp)
 {
 	bool directory_request = (response_target.back() == '/');
 
@@ -143,8 +118,8 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 		std::cout << "----------------------------------------------------XXXXXXX " << response_target << std::endl;
 		status_code = 301;
 		location = response_target.substr(location_config->root.size()); // response target without root
-		location = "http://" + request.host + ':' + std::to_string(port) + location + '/';
-		// location = "http://" + request.host + ':' + std::to_string(port) + request.request_target + '/';
+		location = "http://" + request.host + ':' + std::to_string(server.port) + location + '/';
+		// location = "http://" + request.host + ':' + std::to_string(server.port) + request.request_target + '/';
 		
 		normalize_path(location);
 		std::cout << "----------------------------------------------------location " << location << std::endl;
@@ -163,7 +138,7 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 	if (std::regex_match(request.request_target, std::regex(R"(.*cgi-bin.*)"))) // TEMP
 	{
 	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
-		init_cgi(status_code, envp);
+		init_cgi(status_code, envp, server, request, response);
 		if (cgi.fail)
 		{
 			status_code = 500;
@@ -180,7 +155,7 @@ void	Response::init_body(int& status_code, const Request& request, const uint16_
 	}
 }
 
-void	Response::init_error_body(int& status_code, const Request& request, const uint16_t port, char** envp)
+void	Response::init_error_body(int& status_code, const Request& request, const Server& server, char** envp)
 {
 	if (server_config->error_page.find(status_code) != server_config->error_page.end())
 	{
@@ -189,7 +164,7 @@ void	Response::init_error_body(int& status_code, const Request& request, const u
 		{
 			set_location_config(response_target);
 			set_response_target(response_target, status_code);
-			init_body(status_code, request, port, envp);
+			init_body(status_code, request, *this, server, envp);
 		}
 		else
 		{
@@ -220,7 +195,7 @@ void	Response::create_header(const int status_code)
 {
 	std::ostringstream oss;
 	oss			<< "HTTP/1.1 "				<< status_code << ' ' << status_text		<< "\r\n"
-				<< "Server: "				<< "webserv/1.0"							<< "\r\n"
+				<< "Server: "				<< server									<< "\r\n"
 				<< "Date: "					<< get_date()								<< "\r\n"
 				<< "Content-Type: "			<< content_type								<< "\r\n";
 	if (transfer_encoding.empty())

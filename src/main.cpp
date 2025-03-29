@@ -45,27 +45,27 @@ int	poll_servers(std::vector<Server>& servers)
 			fds.emplace_back(pollfd{.fd = connection.fd, .events = connection.events, .revents = 0});
 			connection.revents = &fds.back().revents;
 			CGI& cgi = connection.response.cgi;
+			cgi.revents_write_into_cgi = nullptr;
+			cgi.revents_read_from_cgi = nullptr;
 			if (cgi.pid >= 0 && !cgi.fail)
 			{
 				if (cgi.pipe_into_cgi[1] >= 0)
 				{
-					fds.emplace_back(pollfd{.fd = cgi.pipe_into_cgi[1], .events = POLLOUT, .revents = 0});
-					cgi.revents_write_into_cgi = &fds.back().revents;
+					// if (cgi.is_running())
+					// {
+						std::cout << "pidpoll1" << std::endl;
+						fds.emplace_back(pollfd{.fd = cgi.pipe_into_cgi[1], .events = POLLOUT, .revents = 0});
+						cgi.revents_write_into_cgi = &fds.back().revents;
+					// }
+					// else
+					// 	cgi.fail = true;
 				}
-				else
-					cgi.revents_write_into_cgi = nullptr;
-				if (cgi.pipe_from_cgi[0] >= 0)
+				else if (cgi.pipe_from_cgi[0] >= 0)
 				{
+					std::cout << "pidpoll2" << std::endl;
 					fds.emplace_back(pollfd{.fd = cgi.pipe_from_cgi[0], .events = POLLIN, .revents = 0});
 					cgi.revents_read_from_cgi = &fds.back().revents;
 				}
-				else
-					cgi.revents_read_from_cgi = nullptr;
-			}
-			else
-			{
-				cgi.revents_write_into_cgi = nullptr;
-				cgi.revents_read_from_cgi = nullptr;
 			}
 		}
 	}
@@ -92,6 +92,12 @@ int	main(int argc, char** argv, char** envp)
 
 		while (true)
 		{
+			// std::cout << poll_servers(servers) << std::endl;
+
+			// std::cout << "\n\nsleep" << std::endl;
+			// usleep(1000000);
+			// std::cout << "\n" << std::endl;
+
 			poll_servers(servers);
 			for (Server& server : servers)
 			{
@@ -119,10 +125,10 @@ int	main(int argc, char** argv, char** envp)
 			}
 
 			// debug
-			// std::cout << "| ";
-			// for (Server& server : servers)
-			// 	std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
-			// std::cout << std::endl;
+			std::cout << "| ";
+			for (Server& server : servers)
+				std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
+			std::cout << std::endl;
 		}
 	}
 	catch (const std::exception& e)

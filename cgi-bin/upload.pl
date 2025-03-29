@@ -3,8 +3,29 @@ use CGI;
 use strict;
 use warnings;
 use File::Path qw(make_path);
+use Cwd 'cwd';
 
-my $upload_dir = "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/uploads";
+# my $upload_dir = "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/uploads";
+
+my $document_root = $ENV{'DOCUMENT_ROOT'} // cwd();  # Use DOCUMENT_ROOT if set, otherwise use the current directory
+my $upload_dir = "$document_root/uploads";
+
+# sleep 3;
+
+
+
+# #TMP DEBUG
+# # Open a file for writing
+# open(my $fh, '>', 'env_output.txt') or die "Could not open file: $!";
+# # Loop through each environment variable and write to file
+# while (my ($key, $value) = each %ENV) {
+#     print $fh "$key=$value\n";
+# }
+
+
+
+
+
 
 # Create the upload directory if it doesn't exist
 unless (-d $upload_dir) {
