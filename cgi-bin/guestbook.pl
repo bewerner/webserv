@@ -22,12 +22,17 @@
 ##############################################################################
 # Set Variables
 
-$guestbookurl = "http://localhost:8080/guestbook.html";
-$guestbookreal = "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/guestbook/guestbook.html";
-$guestlog = "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/guestbook/guestlog.html";
+use Cwd 'cwd';
+
+# my $upload_dir = "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/uploads";
+
+my $document_root = $ENV{'DOCUMENT_ROOT'} // cwd();  # Use DOCUMENT_ROOT if set, otherwise use the current directory
+
+$guestbookurl = "http://localhost:8080/guestbook/guestbook.html";
+$guestbookreal = "$document_root/guestbook/guestbook.html";
+$guestlog = "$document_root/guestbook/guestlog.html";
 $cgiurl = "http://localhost:8080/cgi-bin/guestbook.pl";
 $date_command = "/bin/date";
-
 # Set Your Options:
 $mail = 0;              # 1 = Yes; 0 = No
 $uselog = 1;            # 1 = Yes; 0 = No

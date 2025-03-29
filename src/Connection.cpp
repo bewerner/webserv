@@ -406,6 +406,13 @@ void	Connection::respond(void)
 	{
 		std::cout << "✓ response fully sent  " << std::endl;
 		std::cout << "✓ close: " << close << std::endl;
+		// // debug
+		// if (request.header_received || request.received)
+		// {
+		// 	std::cout	 << "--------------------REQUEST-HEADER--------------------\n"
+		// 				<< request.header
+		// 				<< "------------------------------------------------------\n\n\n" << std::endl;
+		// }
 		// exit(0);
 		if (response.connection != "keep-alive")
 			close = true;
