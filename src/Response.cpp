@@ -63,7 +63,7 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 	}
 
 	// if (config.cgi)
-	if (std::regex_match(request_target, std::regex(R"(.*cgi-bin.*)"))) // TEMP
+	if (location_config->cgi)
 		extract_path_info(request_target);
 
 	if (directory_request)
@@ -149,7 +149,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 
 	// if (location_config->cgi)
 	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
-	if (std::regex_match(request.request_target, std::regex(R"(.*cgi-bin.*)"))) // TEMP
+	if (location_config->cgi)
 	{
 	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
 		init_cgi(status_code, envp, server, request, response);
