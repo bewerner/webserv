@@ -181,18 +181,22 @@ void validateRoot(const std::vector<Server>& servers)
 	}
 }
 
-void validateRootAlias(const std::vector<Server>& servers)
+void validateRootAlias(std::vector<Server>& servers)
 {
-	for (const auto& server : servers)
+	for (auto& server : servers)
 	{
-		for (const auto& config : server.conf)
+		for (auto& config : server.conf)
 		{
-			for (const auto& location : config.locations)
+			for (auto& location : config.locations)
 			{
 				if (!location.root.empty() && !location.alias.empty())
 				{
 					throw std::runtime_error("Critical Error: Both 'root' and 'alias' directives are specified in location '" 
 						+ location.path + "' in server " + (config.server_name.empty() ? "[empty]" : config.server_name));
+				}
+				if (location.root.empty())
+				{
+					location.root = location.alias;
 				}
 			}
 		}

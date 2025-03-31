@@ -355,7 +355,7 @@ void processLocationConfigs(const std::vector<std::pair<std::string, std::string
 	serverConfig.locations.clear();
 	for (auto& [path, location] : locationsMap)
 	{
-		if (location.root.empty() && !serverConfig.root.empty())
+		if (location.root.empty() && location.alias.empty() && !serverConfig.root.empty())
 			location.root = serverConfig.root;
 		if (location.index.empty() && !serverConfig.index.empty())
 			location.index = serverConfig.index;
