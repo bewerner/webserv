@@ -38,6 +38,9 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 {
 	const LocationConfig* config = location_config;
 
+	if (!config->alias.empty())
+		request_target.erase(0, config->path.size());
+
 	bool directory_request = (request_target.back() == '/');
 	bool absolute_index    = (config->index.front() == '/');
 	bool directory_index   = (config->index.back()  == '/');
@@ -67,9 +70,17 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 	{
 		if (absolute_index) // request target is irrelevant -> search for root+index
 		{
-			response_target = config->root + config->index;
-			if (!std::filesystem::exists(response_target))
-				response_target = config->root;
+			response_target = config->index;
+			// sleep(1); std::cout << response_target << std::endl; sleep (1);
+			set_location_config(response_target);
+			config = location_config;
+			if (!config->alias.empty())
+				response_target.erase(0, config->path.size());
+			// sleep(1); std::cout << response_target << std::endl; sleep (1);
+			response_target = config->root + response_target;
+			// sleep(1); std::cout << response_target << std::endl; sleep (1);
+			// if (!std::filesystem::exists(response_target))
+			// 	response_target = config->root;
 		}
 		else // index is relative file_index (for example index.html)
 		{
@@ -117,7 +128,10 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	{
 		std::cout << "----------------------------------------------------XXXXXXX " << response_target << std::endl;
 		status_code = 301;
-		location = response_target.substr(location_config->root.size()); // response target without root
+		// location = response_target.substr(location_config->root.size()); // response target without root
+		location = request.request_target;
+		if (location.back() == '/')
+			location.append(location_config->index);
 		location = "http://" + request.host + ':' + std::to_string(server.port) + location + '/';
 		// location = "http://" + request.host + ':' + std::to_string(server.port) + request.request_target + '/';
 		
