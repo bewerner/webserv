@@ -143,8 +143,12 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 		location.index = value;
 	else if (key == "upload_dir")
 		location.client_body_temp_path = value;
-	else if (key == "cgi_extension")
-		location.fastcgi_param = value;
+	else if (key == "cgi")
+	{
+		if (value != "on" && value != "off")
+			throw std::runtime_error("Invalid cgi value. Expected 'on' or 'off', got: " + value);
+		location.cgi = (value == "on");
+	}
 	else if (key == "dav_methods")
 	{
 		std::istringstream methodStream(value);

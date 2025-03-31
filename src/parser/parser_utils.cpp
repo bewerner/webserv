@@ -98,7 +98,7 @@ void printData(const std::vector<Server>& servers)
 				std::cout << "  Auto Index: " << (loc.autoindex ? "enabled" : "disabled") << "\n";
 				std::cout << "  Default File: " << loc.index << "\n";
 				std::cout << "  Upload Directory: " << loc.client_body_temp_path << "\n";
-				std::cout << "  CGI Handler Extension: " << loc.fastcgi_param << "\n";
+				std::cout << "  CGI: " << (loc.cgi ? "enabled" : "disabled") << "\n";
 				std::cout << "  Max Client Body Size: " << loc.client_max_body_size << "\n";
 				std::cout << "  DAV Methods: ";
 				for (const auto& method : loc.dav_methods)

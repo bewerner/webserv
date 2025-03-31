@@ -9,7 +9,7 @@ bool isValidLocationKey(const std::string& key)
 		"autoindex",
 		"index",
 		"upload_dir",
-		"cgi_extension",
+		"cgi",
 		"dav_methods",
 		"client_max_body_size"
 	};
@@ -368,72 +368,6 @@ void validateUploadDir(const std::vector<Server>& servers)
 	}
 }
 
-void validateCgiExtension(const std::vector<Server>& servers)
-{
-	for (const auto& server : servers)
-	{
-		for (const auto& config : server.conf)
-		{
-			for (const auto& loc : config.locations)
-			{
-				if (!loc.fastcgi_param.empty())
-				{
-					if (loc.fastcgi_param[0] != '.')
-					{
-						std::cerr << "Warning: CGI extension should start with a dot: " 
-							<< loc.fastcgi_param << " in location " << loc.path << std::endl;
-					}
-					if (loc.fastcgi_param == ".php")
-					{
-						const char* phpPaths[] = {
-							"/usr/bin/php-cgi",
-							"/usr/local/bin/php-cgi",
-							"/opt/homebrew/bin/php-cgi",
-							"/bin/php-cgi"
-						};
-						
-						bool found = false;
-						for (const char* path : phpPaths)
-						{
-							if (access(path, X_OK) == 0)
-							{
-								found = true;
-								break;
-							}
-						}
-						
-						if (!found)
-							std::cerr << "Warning: PHP CGI might not be installed. PHP files might not be processed correctly." << std::endl;
-					}
-					else if (loc.fastcgi_param == ".py")
-					{
-						const char* pythonPaths[] = {
-							"/usr/bin/python",
-							"/usr/local/bin/python",
-							"/opt/homebrew/bin/python",
-							"/bin/python"
-						};
-						
-						bool found = false;
-						for (const char* path : pythonPaths)
-						{
-							if (access(path, X_OK) == 0)
-							{
-								found = true;
-								break;
-							}
-						}
-						if (!found)
-						{
-							std::cerr << "Warning: Python might not be installed. Python files might not be processed correctly." << std::endl;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 void validateDavMethods(std::vector<Server>& servers)
 {
 	static const std::set<std::string> validMethods = {
@@ -501,7 +435,6 @@ void validateClientMaxBodySize(const std::vector<Server>& servers)
 						<< ". This might cause memory issues." << std::endl;
 				}
 			}
-			
 			for (const auto& loc : config.locations)
 			{
 				if (loc.client_max_body_size > 0)
@@ -512,7 +445,6 @@ void validateClientMaxBodySize(const std::vector<Server>& servers)
 							<< loc.client_max_body_size << " bytes in location " 
 							<< loc.path << ". This might cause memory issues." << std::endl;
 					}
-					
 					if (config.client_max_body_size > 0 && loc.client_max_body_size > config.client_max_body_size)
 					{
 						std::cerr << "Warning: Location client_max_body_size (" 
@@ -639,7 +571,6 @@ void validateConfigurations(std::vector<Server>& servers)
 		validateRoot(servers);
 		validateIndex(servers);
 		validateUploadDir(servers);
-		validateCgiExtension(servers);
 		validateDavMethods(servers);
 		validateClientMaxBodySize(servers);
 		validateErrorPage(servers);

@@ -140,7 +140,7 @@ struct LocationConfig
 	bool											autoindex = false;
 	std::string										index;
 	std::string										client_body_temp_path;
-	std::string										fastcgi_param;
+	bool											cgi = false;
 	size_t											client_max_body_size = 0;
 	std::map<int, std::string>						error_page;
 };
