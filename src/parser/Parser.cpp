@@ -1,5 +1,60 @@
 #include "webserv.hpp"
 
+bool isNumeric(const std::string& str)
+{
+	if (str.empty())
+		return false;
+
+	for (size_t i = 0; i < str.size(); ++i)
+	{
+		if (i == 0 && str[i] == '-' && str.size() > 1)
+			continue;
+		if (!std::isdigit(str[i]))
+			return false;
+	}
+	return true;
+}
+
+bool safeStringToUInt16(const std::string& str, uint16_t& result)
+{
+	if (!isNumeric(str))
+		return false;
+
+	try 
+	{
+		long value = std::stol(str);
+		if (value < 0 || value > UINT16_MAX)
+			return false;
+		
+		result = static_cast<uint16_t>(value);
+		return true;
+	}
+	catch (const std::exception&) 
+	{
+		return false;
+	}
+}
+
+bool safeStringToSizeT(const std::string& str, size_t& result)
+{
+	if (!isNumeric(str))
+		return false;
+
+	try
+	{
+		long long value = std::stoll(str);
+		if (value < 0)
+			return false;
+		
+		result = static_cast<size_t>(value);
+		return true;
+	}
+	catch (const std::exception&)
+	{
+		return false;
+	}
+}
+
 void parseListen(ServerConfig& config, const std::string& value, std::string& sharedHost, uint16_t& sharedPort)
 {
 	std::string hostPart = "0.0.0.0";
@@ -10,8 +65,14 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 		hostPart = value.substr(0, colonPos);
 		portPart = value.substr(colonPos + 1);
 	}
-	else
+	else if (isNumeric(value))
 		portPart = value;
+	else
+		hostPart = value;
+	uint16_t port;
+	if (!safeStringToUInt16(portPart, port)) {
+		throw std::runtime_error("Invalid port number: " + portPart);
+	}
 	config.host_str = hostPart;
 	try
 	{
@@ -22,12 +83,13 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 		std::cerr << "Warning: Host '" << hostPart << "' could not be resolved. Using 0.0.0.0" << std::endl;
 		config.host.s_addr = INADDR_ANY;
 	}
-	config.port = static_cast<uint16_t>(std::stoi(portPart));
+	config.port = port;
 	sharedHost = hostPart;
 	sharedPort = config.port;
 }
 
-void saveLocationConfig(LocationConfig& location, const std::string& line, const std::string& path) {
+void saveLocationConfig(LocationConfig& location, const std::string& line, const std::string& path)
+{
 	location.path = path;
 
 	if (line.find(';') == std::string::npos && line.find("location") != 0)
@@ -69,23 +131,47 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 
 	if (key == "root")
 		location.root = value;
+	else if (key == "alias")
+		location.alias = value;
 	else if (key == "autoindex")
+	{
+		if (value != "on" && value != "off")
+			throw std::runtime_error("Invalid autoindex value. Expected 'on' or 'off', got: " + value);
 		location.autoindex = (value == "on");
+	}
 	else if (key == "index")
 		location.index = value;
 	else if (key == "upload_dir")
 		location.client_body_temp_path = value;
-	else if (key == "cgi_extension")
-		location.fastcgi_param = value;
-	else if (key == "allow_methods")
+	else if (key == "cgi")
+	{
+		if (value != "on" && value != "off")
+			throw std::runtime_error("Invalid cgi value. Expected 'on' or 'off', got: " + value);
+		location.cgi = (value == "on");
+	}
+	else if (key == "dav_methods")
 	{
 		std::istringstream methodStream(value);
 		std::string method;
 		while (methodStream >> method)
-			location.allow_methods.insert(method);
+		{
+			if (method != "GET" && method != "POST" && method != "DELETE")
+			{
+				throw std::runtime_error("Invalid HTTP method in dav_methods: " + method);
+			}
+			location.dav_methods.insert(method);
+		}
+		
+		if (location.dav_methods.empty())
+			throw std::runtime_error("No valid methods specified in dav_methods directive");
 	}
 	else if (key == "client_max_body_size")
-		location.client_max_body_size = std::stoull(value);
+	{
+		size_t size;
+		if (!safeStringToSizeT(value, size))
+			throw std::runtime_error("Invalid client_max_body_size value: " + value);
+		location.client_max_body_size = size;
+	}
 }
 
 void saveServerConfig(ServerConfig& config, const std::string& line, std::string& sharedHost, uint16_t& sharedPort)
@@ -139,15 +225,40 @@ void saveServerConfig(ServerConfig& config, const std::string& line, std::string
 	else if (key == "index")
 		config.index = value;
 	else if (key == "autoindex")
+	{
+		if (value != "on" && value != "off")
+			throw std::runtime_error("Invalid autoindex value. Expected 'on' or 'off', got: " + value);
 		config.autoindex = (value == "on");
+	}
 	else if (key == "client_max_body_size")
-		config.client_max_body_size = std::stoull(value);
-	else if (key == "error_page") {
+	{
+		size_t size;
+		if (!safeStringToSizeT(value, size))
+			throw std::runtime_error("Invalid client_max_body_size value: " + value);
+		config.client_max_body_size = size;
+	}
+	else if (key == "error_page")
+	{
 		std::istringstream errorStream(value);
 		int errorCode;
+		std::string errorCodeStr;
 		std::string errorPage;
-		if (errorStream >> errorCode >> errorPage)
-			config.error_page[errorCode] = errorPage;
+		
+		if (!(errorStream >> errorCodeStr) || !isNumeric(errorCodeStr))
+			throw std::runtime_error("Invalid error_page format. Expected 'error_page CODE PATH', got: " + value);
+		
+		try {
+			errorCode = std::stoi(errorCodeStr);
+			if (errorCode < 100 || errorCode > 599)
+				throw std::runtime_error("Invalid HTTP error code in error_page: " + errorCodeStr);
+		} catch (const std::exception&) {
+			throw std::runtime_error("Invalid HTTP error code in error_page: " + errorCodeStr);
+		}
+
+		if (!(errorStream >> errorPage))
+			throw std::runtime_error("Missing error page path in error_page directive");
+			
+		config.error_page[errorCode] = errorPage;
 	}
 }
 
@@ -244,7 +355,7 @@ void processLocationConfigs(const std::vector<std::pair<std::string, std::string
 	serverConfig.locations.clear();
 	for (auto& [path, location] : locationsMap)
 	{
-		if (location.root.empty() && !serverConfig.root.empty())
+		if (location.root.empty() && location.alias.empty() && !serverConfig.root.empty())
 			location.root = serverConfig.root;
 		if (location.index.empty() && !serverConfig.index.empty())
 			location.index = serverConfig.index;
@@ -261,7 +372,13 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 {
 	std::vector<std::string> configLines;
 	std::vector<std::pair<std::string, std::string>> locationLines;
-	extractServerBlockLines(block, configLines, locationLines);
+
+	try {
+		extractServerBlockLines(block, configLines, locationLines);
+	}
+	catch (const std::exception& e) {
+		throw std::runtime_error("Error extracting server block: " + std::string(e.what()));
+	}
 
 	ServerConfig baseConfig;
 	std::vector<std::pair<std::string, uint16_t>> listenDirectives;
@@ -272,54 +389,74 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 	{
 		if (configLine.find("listen") == 0)
 		{
-			size_t sepPos = configLine.find(" ");
-			if (sepPos != std::string::npos)
-			{
-				std::string value = removeSpaces(configLine.substr(sepPos + 1));
-				if (value.back() == ';')
-					value.pop_back();
-				
-				std::string host = "0.0.0.0";
-				std::string portPart = "80";
-				size_t colonPos = value.find(':');
-				
-				if (colonPos != std::string::npos)
+			try {
+				size_t sepPos = configLine.find(" ");
+				if (sepPos != std::string::npos)
 				{
-					host = value.substr(0, colonPos);
-					portPart = value.substr(colonPos + 1);
+					std::string value = removeSpaces(configLine.substr(sepPos + 1));
+					if (value.back() == ';')
+						value.pop_back();
+					
+					std::string host = "0.0.0.0";
+					std::string portPart = "80";
+					size_t colonPos = value.find(':');
+					
+					if (colonPos != std::string::npos)
+					{
+						host = value.substr(0, colonPos);
+						portPart = value.substr(colonPos + 1);
+					}
+					else if (isNumeric(value))
+						portPart = value;
+					else
+						host = value;
+					
+					uint16_t port;
+					if (!safeStringToUInt16(portPart, port))
+						throw std::runtime_error("Invalid port number: " + portPart);
+					
+					listenDirectives.push_back({host, port});
 				}
-				else
-					portPart = value;
-				uint16_t port = static_cast<uint16_t>(std::stoi(portPart));
-				listenDirectives.push_back({host, port});
+			}
+			catch (const std::exception& e) {
+				throw std::runtime_error("Error in listen directive: " + std::string(e.what()));
 			}
 		}
 	}
+
 	if (listenDirectives.empty())
 		listenDirectives.push_back({"0.0.0.0", 80});
+
 	for (const auto& configLine : configLines)
 	{
 		if (configLine.find("server_name") == 0)
 		{
-			size_t sepPos = configLine.find(" ");
-			if (sepPos != std::string::npos)
-			{
-				std::string value = removeSpaces(configLine.substr(sepPos + 1));
-				if (value.back() == ';')
-					value.pop_back();
-				
-				std::istringstream nameStream(value);
-				std::string name;
-				while (nameStream >> name)
+			try {
+				size_t sepPos = configLine.find(" ");
+				if (sepPos != std::string::npos)
 				{
-					serverNames.push_back(name);
-					hasServerNames = true;
+					std::string value = removeSpaces(configLine.substr(sepPos + 1));
+					if (value.back() == ';')
+						value.pop_back();
+					
+					std::istringstream nameStream(value);
+					std::string name;
+					while (nameStream >> name)
+					{
+						serverNames.push_back(name);
+						hasServerNames = true;
+					}
 				}
+			}
+			catch (const std::exception& e) {
+				throw std::runtime_error("Error in server_name directive: " + std::string(e.what()));
 			}
 		}
 	}
+
 	if (!hasServerNames)
 		serverNames.push_back("");
+
 	for (const auto& configLine : configLines)
 	{
 		if (configLine.find("listen") != 0 && configLine.find("server_name") != 0)
@@ -338,13 +475,20 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			}
 		}
 	}
-	processLocationConfigs(locationLines, baseConfig);
+
+	try 
+	{
+		processLocationConfigs(locationLines, baseConfig);
+	}
+	catch (const std::exception& e) 
+	{
+		throw std::runtime_error("Error processing location configs: " + std::string(e.what()));
+	}
+
 	for (const auto& [host_str, port] : listenDirectives)
 	{
-		for (size_t i = 0; i < serverNames.size(); ++i)
+		for (const std::string& name : serverNames)
 		{
-			const std::string& name = serverNames[i];
-			
 			Server newServer;
 			try
 			{
@@ -381,7 +525,7 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 {
 	std::map<std::pair<in_addr_t, uint16_t>, std::vector<const Server*>> hostPortGroups;
 	std::map<std::pair<in_addr_t, uint16_t>, const Server*> firstServerPerHostPort;
-	
+
 	for (const Server& server : allServers)
 	{
 		std::pair<in_addr_t, uint16_t> hostPort = {server.host.s_addr, server.port};
@@ -426,60 +570,54 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 
 void parser(std::vector<Server>& servers, std::string confPath)
 {
-	try 
+	std::ifstream file(confPath);
+	if (!file.is_open())
+		throw std::runtime_error("Failed to open config file: " + confPath);
+
+	std::string content((std::istreambuf_iterator<char>(file)),
+						std::istreambuf_iterator<char>());
+
+	content = removeComments(content);
+	content = removeSpaces(content);
+
+	std::regex serverPattern(R"(server\s*?\{[\s\S]*?\}\s*?(?=server\s*?\{|$))");
+	std::sregex_iterator it(content.begin(), content.end(), serverPattern);
+	std::sregex_iterator end;
+	std::vector<Server> allServers;
+
+	if (it == end)
+		throw std::runtime_error("No server blocks found in configuration file");
+		
+	while (it != end)
 	{
-		std::ifstream file(confPath);
-		if (!file.is_open())
-			throw std::runtime_error("Failed to open config file: " + confPath);
-		std::string content((std::istreambuf_iterator<char>(file)),
-							std::istreambuf_iterator<char>());
-
-		content = removeComments(content);
-		content = removeSpaces(content);
-
-		std::regex serverPattern(R"(server\s*?\{[\s\S]*?\}\s*?(?=server\s*?\{|$))");
-		std::sregex_iterator it(content.begin(), content.end(), serverPattern);
-		std::sregex_iterator end;
-		std::vector<Server> allServers;
-		while (it != end)
-		{
-			std::string serverBlock = it->str();
-			try
-			{
-				std::vector<Server> tempServers;
-				extractMultiPortServerData(tempServers, serverBlock);
-				allServers.insert(allServers.end(), tempServers.begin(), tempServers.end());
-			}
-			catch (const std::exception& e)
-			{
-				std::cerr << "Error parsing server block: " << e.what() << std::endl;
-				std::cerr << "Invalid config file!" << std::endl;
-				servers.clear();
-				return;
-			}
-			++it;
-		}
-		groupServersByPort(allServers, servers);
-		if (!validateConfigurations(servers))
-		{
-			servers.clear();
-			return;
-		}
+		std::string serverBlock = it->str();
 		try
 		{
-			init_sockets(servers);
+			std::vector<Server> tempServers;
+			extractMultiPortServerData(tempServers, serverBlock);
+			allServers.insert(allServers.end(), tempServers.begin(), tempServers.end());
 		}
 		catch (const std::exception& e)
 		{
-			std::cerr << "Socket initialization error: " << e.what() << std::endl;
-			servers.clear();
-			return;
+			throw std::runtime_error("Error parsing server block: " + std::string(e.what()));
 		}
-		printData(servers);
+		++it;
+	}
+
+	if (allServers.empty())
+		throw std::runtime_error("No valid server configurations found");
+		
+	groupServersByPort(allServers, servers);
+	validateConfigurations(servers);
+	try
+	{
+		init_sockets(servers);
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "Parser error: " << e.what() << std::endl;
-		servers.clear();
+		throw std::runtime_error("Socket initialization error: " + std::string(e.what()));
 	}
+
+	// Print configuration data
+	printData(servers);
 }
