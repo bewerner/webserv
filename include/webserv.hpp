@@ -94,7 +94,7 @@ struct CGI
 	void	init_pipes(void);
 	void	fork(void);
 	void	setup_io(void);
-	void	exec(char** envp, const Server& server, const Request& request, const Response& response);
+	void	exec(const Server& server, const Request& request, const Response& response);
 	void	done_writing_into_cgi(void);
 	void	done_reading_from_cgi(void);
 	bool	pollin(void) const;
@@ -133,26 +133,27 @@ struct Response
 
 	void	set_location_config(const std::string& request_target);
 	void	set_response_target(std::string request_target, int& status_code);
-	void	init_body(int& status_code, const Request& request, const Response& response, const Server& server, char** envp);
-	void	init_error_body(int& status_code, const Request& request, const Server& server, char** envp);
+	void	init_body(int& status_code, const Request& request, const Response& response, const Server& server);
+	void	init_error_body(int& status_code, const Request& request, const Server& server);
 	void	create_header(const int status_code);
 	void	generate_directory_listing(const Request& request);
 	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
-	void	init_cgi(int& status_code, char** envp, const Server& server, const Request& request, const Response& response);
+	void	init_cgi(int& status_code, const Server& server, const Request& request, const Response& response);
 	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code);
 };
 
 struct Connection
 {
-	int					fd;
+	int					fd = -1;
 	const Server*		server = nullptr;
 	const ServerConfig*	server_config = nullptr;
 	short				events = POLLIN;
 	bool				close = false;
 	int					status_code = 0;
+	bool				exception = false;
 
 	Request				request;
 	Response			response;
@@ -166,6 +167,11 @@ struct Connection
 	Connection(Server* server);
 	~Connection(void);
 
+	bool	pollin(void);
+	bool	pollout(void);
+	bool	pollhup(void);
+	bool	pollerr(void);
+
 	void	set_server_config(void);
 	void	receive(void);
 	void	respond(void);
@@ -173,6 +179,7 @@ struct Connection
 	void	receive_header(void);
 	void	receive_body(void);
 	void	init_response(void);
+	void	handle_exception(const std::exception& e);
 };
 
 struct LocationConfig
@@ -214,7 +221,6 @@ struct Server
 	sockaddr_in										sockaddr;
 	std::chrono::seconds							request_timeout = std::chrono::seconds(35);
 	std::chrono::seconds							response_timeout = std::chrono::seconds(35);
-	char**									envp;
 
 	short*											revents;
 
