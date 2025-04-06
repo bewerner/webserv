@@ -109,9 +109,7 @@ void	Connection::receive_header(void)
 
 void	Connection::check_dav_methods(void)
 {
-	if (request.method != "DELETE")
-		return ;
-	if (response.location_config->dav_methods.find("DELETE") == response.location_config->dav_methods.end())
+	if (request.method == "DELETE" && response.location_config->dav_methods != "DELETE")
 	{
 		status_code = 405;
 	}

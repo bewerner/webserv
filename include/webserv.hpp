@@ -191,7 +191,7 @@ struct LocationConfig
 	std::string										path;
 	std::string										root;
 	std::string										alias;
-	std::set<std::string>							dav_methods;
+	std::string										dav_methods;
 	bool											autoindex = false;
 	std::string										index;
 	std::string										client_body_temp_path;
