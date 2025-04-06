@@ -38,8 +38,13 @@ int	poll_servers(std::vector<Server>& servers)
 		server.revents = &fds.back().revents;
 		for (Connection& connection : server.connections)
 		{
-			fds.emplace_back(pollfd{.fd = connection.fd, .events = connection.events, .revents = 0});
-			connection.revents = &fds.back().revents;
+			connection.revents = nullptr;
+			// if ((connection.buffer.empty() && connection.events == POLLIN) || connection.events == POLLOUT)
+			{
+				// std::cout << "x" << std::endl;
+				fds.emplace_back(pollfd{.fd = connection.fd, .events = connection.events, .revents = 0});
+				connection.revents = &fds.back().revents;
+			}
 			CGI& cgi = connection.response.cgi;
 			cgi.revents_write_into_cgi = nullptr;
 			cgi.revents_read_from_cgi = nullptr;
@@ -90,7 +95,7 @@ int	main(int argc, char** argv)
 
 	while (true)
 	{
-		poll_servers(servers);
+		std::cout << "poll: " << poll_servers(servers) << std::endl;
 		for (Server& server : servers)
 		{
 			for (Connection& connection : server.connections)

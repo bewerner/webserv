@@ -9,20 +9,10 @@ void	CGI::init_pipes(void)
 	(
 		pipe(pipe_into_cgi) < 0 ||
 		pipe(pipe_from_cgi) < 0 ||
-		fcntl(pipe_into_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
 		fcntl(pipe_into_cgi[1], F_SETFL, O_NONBLOCK) < 0 ||
-		fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
-		fcntl(pipe_from_cgi[1], F_SETFL, O_NONBLOCK) < 0
+		fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0
 	)
 		fail = true;
-
-
-	// if
-	// (
-	// 	pipe(pipe_into_cgi) < 0 ||
-	// 	pipe(pipe_from_cgi) < 0
-	// )
-	// 	fail = true;
 }
 
 void	CGI::fork(void)

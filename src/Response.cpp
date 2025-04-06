@@ -52,14 +52,15 @@ void	Response::set_response_target(std::string request_target, int& status_code)
 			status_code = 500;
 			return ;
 		}
-		set_location_config(config->index);
-		config = location_config;
 		request_target = config->index;
+		set_location_config(request_target);
+		config = location_config;
 		directory_request = (request_target.back() == '/');
 		absolute_index    = (config->index.front() == '/');
 		directory_index   = (config->index.back()  == '/');
-		if (directory_request)
-			request_target.clear();
+		// if (directory_request)
+		// 	request_target.clear();
+		std::cout << "tmp -> " << config->root << " " << request_target << std::endl;
 	}
 
 	// if (config.cgi)

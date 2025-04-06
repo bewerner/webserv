@@ -1,6 +1,4 @@
 #include "webserv.hpp"
-#include <filesystem>
-namespace fs = std::filesystem;
 
 Connection::Connection(Server* server) : server(server)
 {
@@ -164,7 +162,6 @@ void	Connection::receive_body(void)
 	std::cout  << "   forwarding body to cgi -->" << std::endl;
 	std::cout  << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 
-
 	//UNCHUNK CHUNKED BODY HERE
 
 	// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxRECEIVExBODYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
@@ -172,11 +169,11 @@ void	Connection::receive_body(void)
 	ssize_t sent = write(response.cgi.pipe_into_cgi[1], buffer.data(), size);
 	if (sent == -1)
 	{
-		std::cout << "write to cgi FAIL" << std::endl;
+		std::cout << "write to cgi FAIL a" << std::endl;
 	}
 	if (sent == -1 && !response.cgi.is_running())
 	{
-		std::cout << "write to cgi FAIL" << std::endl;
+		std::cout << "write to cgi FAIL b" << std::endl;
 		response.cgi.fail = true;
 		request.received = true;
 		status_code = 500;
@@ -211,10 +208,11 @@ void	Connection::receive(void)
 		std::cout << "yes" << std::endl;
 	else
 		std::cout << "no" << std::endl;
-	std::cout << "   client speaking?: " << (*revents & POLLIN) << std::endl;
+	std::cout << "   client speaking?: " << pollin() << std::endl;
+	std::cout << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 	// sleep(1);
 
-	if (buffer.size() < BUFFER_SIZE && *revents & POLLIN)																// only receive new bytes if there is space in the buffer
+	if (buffer.size() < BUFFER_SIZE && pollin())																// only receive new bytes if there is space in the buffer
 	{
 		size_t capacity = BUFFER_SIZE - buffer.size();
 		// if (request.header_received && request.content_length_specified)
@@ -247,6 +245,7 @@ void	Connection::receive(void)
 		receive_body();
 	if (!request.received && request.header_received && request.method == "POST" && !response.cgi.is_running())
 	{
+		std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX cgi aborted before fully receiving request body";
 		response.cgi.fail = true;
 		status_code = 500;
 		init_response();
@@ -370,7 +369,7 @@ void	Connection::respond(void)
 	if (using_cgi && !response.cgi.header_extracted)
 		return ;
 
-	if (*revents & POLLOUT)
+	if (pollout())
 	{
 		ssize_t sent = send(fd, buffer.data(), buffer.size(), 0);
 		std::cout << "   sent " << sent << " bytes to client    buffersize: " << buffer.size() << std::endl;
@@ -387,7 +386,7 @@ void	Connection::respond(void)
 	std::cout << "using cgi:  " << using_cgi << std::endl;
 	std::cout << "cgi.eof:    " << response.cgi.eof << std::endl;
 	std::cout << "buffersize: " << buffer.size() << std::endl;
-	std::cout << "pollout: "    << (*revents & POLLOUT) << std::endl;
+	std::cout << "pollout: "    << pollout() << std::endl;
 
 	if ((!response.ifs_body || response.ifs_body->eof()) && (!using_cgi || response.cgi.eof) && buffer.empty())
 	{
@@ -436,20 +435,20 @@ void	Connection::handle_exception(const std::exception& e)
 
 bool	Connection::pollin(void)
 {
-	return (*revents & POLLIN);
+	return (revents && *revents & POLLIN);
 }
 
 bool	Connection::pollout(void)
 {
-	return (*revents & POLLOUT);
+	return (revents && *revents & POLLOUT);
 }
 
 bool	Connection::pollhup(void)
 {
-	return (*revents & POLLHUP);
+	return (revents && *revents & POLLHUP);
 }
 
 bool	Connection::pollerr(void)
 {
-	return (*revents & POLLERR);
+	return (revents && *revents & POLLERR);
 }

@@ -1,86 +1,36 @@
-#!/usr/bin/perl -w
-use CGI;
+#!/usr/bin/perl
 use strict;
 use warnings;
+use CGI;
 use File::Path qw(make_path);
 use Cwd 'cwd';
 
-# my $upload_dir = "/Users/bwerner/Documents/projects/rank05/webserv/github_webserv/html/uploads";
+my $q = CGI->new;
+print $q->header;
 
-my $document_root = $ENV{'DOCUMENT_ROOT'} // cwd();  # Use DOCUMENT_ROOT if set, otherwise use the current directory
-my $upload_dir = "$document_root/uploads";
+my $filename = $q->param("file");
+my $fh       = $q->upload("file");
 
-# sleep 3;
-
-
-
-# #TMP DEBUG
-# # Open a file for writing
-# open(my $fh, '>', 'env_output.txt') or die "Could not open file: $!";
-# # Loop through each environment variable and write to file
-# while (my ($key, $value) = each %ENV) {
-#     print $fh "$key=$value\n";
-# }
-
-
-
-
-
-
-# Create the upload directory if it doesn't exist
-unless (-d $upload_dir) {
-    make_path($upload_dir) or die "Failed to create directory: $!";
-}
-
-my $query = CGI->new;
-
-# Ensure parameters exist before processing
-my $filename = $query->param("photo") || "";
-my $email_address = $query->param("email_address") || "";
-
-if (!$filename) {
-    print $query->header(), "<html><body><p>Error: No file uploaded.</p></body></html>";
+unless ($filename && $fh) {
+    print "<p>Error: No file uploaded.</p>";
     exit;
 }
 
-# Sanitize filename (remove path)
+# Sanitize filename
 $filename =~ s/.*[\/\\](.*)/$1/;
 
-# Open filehandle safely
-my $upload_filehandle = $query->upload("photo");
-
-if (!$upload_filehandle) {
-    print $query->header(), "<html><body><p>Error: Unable to read uploaded file.</p></body></html>";
-    exit;
-}
+# Upload directory (relative to DOCUMENT_ROOT or current dir)
+my $upload_dir = ($ENV{'DOCUMENT_ROOT'} // cwd()) . "/uploads";
+make_path($upload_dir) unless -d $upload_dir;
 
 # Save file
-open(my $UPLOADFILE, '>', "$upload_dir/$filename") or die "Cannot open file: $!";
-while (<$upload_filehandle>) {
-    print $UPLOADFILE $_;
+open(my $out, '>', "$upload_dir/$filename") or die "Can't save file: $!";
+binmode $out;
+while (<$fh>) {
+    print $out $_;
 }
-close $UPLOADFILE;
+close $out;
 
-# Print response
-print $query->header();
-print <<'END_HTML';
-<html>
-<head>
-    <title>Thanks!</title>
-</head>
-<body>
-    <p>Thanks for uploading your photo!</p>
-    <p>Your email address: 
-END_HTML
-print $email_address;
-print <<'END_HTML';
-    </p>
-    <p>Your photo:</p>
-    <img src="/uploads/
-END_HTML
-print $filename;
-print <<'END_HTML';
-" border="0">
-</body>
-</html>
-END_HTML
+# Output link
+print "<p>File uploaded successfully.</p>";
+print qq{<p><a href="/uploads/">Uploads</a></p>};
