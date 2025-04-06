@@ -34,12 +34,17 @@ void Response::extract_path_info(std::string& request_target)
 	}
 }
 
-void	Response::set_response_target(std::string request_target, int& status_code)
+void	Response::set_response_target(std::string request_target, int& status_code, std::string method)
 {
 	const LocationConfig* config = location_config;
 
 	if (!config->alias.empty())
 		request_target.erase(0, config->path.size());
+	if (method == "DELETE")
+	{
+		response_target = config->root + request_target;
+		return ;
+	}
 
 	bool directory_request = (request_target.back() == '/');
 	bool absolute_index    = (config->index.front() == '/');
@@ -177,7 +182,7 @@ void	Response::init_error_body(int& status_code, const Request& request, const S
 		if (response_target.front() == '/')
 		{
 			set_location_config(response_target);
-			set_response_target(response_target, status_code);
+			set_response_target(response_target, status_code, "GET");
 			init_body(status_code, request, *this, server, envp);
 		}
 		else

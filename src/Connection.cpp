@@ -114,6 +114,38 @@ void	Connection::receive_header(void)
 	}
 }
 
+void	Connection::check_dav_methods(void)
+{
+	if (response.location_config->dav_methods.find("DELETE") == response.location_config->dav_methods.end())
+	{
+		status_code = 405;
+	}
+}
+
+void	Connection::delete_response_target(void)
+{
+	std::filesystem::path path(response.response_target);
+	std::error_code ec;
+	bool is_dir = std::filesystem::is_directory(path, ec);
+	bool directory_path = response.response_target.back() == '/';
+
+	if (ec == std::errc::permission_denied)
+		status_code = 403;
+	else if (ec == std::errc::no_such_file_or_directory)
+		status_code = 404;
+	else if (directory_path != is_dir)
+		status_code = 409;
+
+	if (status_code > 400)
+		return ;
+
+	std::filesystem::remove_all(path, ec);
+	if (ec == std::errc::permission_denied)
+		status_code = 500;
+	else
+		status_code = 204;
+}
+
 void	Connection::init_response(void)
 {
 	// std::cout << "   header fully received" << std::endl;
@@ -130,11 +162,13 @@ void	Connection::init_response(void)
 
 	if (status_code < 300)
 		response.set_location_config(request.request_target);
-	// check allowed method here?
+
+	check_dav_methods();
 	if (status_code < 300)
-		response.set_response_target(request.request_target, status_code);
-	// or here?
-	if (status_code < 300)
+		response.set_response_target(request.request_target, status_code, request.method);
+	if (status_code < 300 && request.method == "DELETE")
+		delete_response_target();
+	else if (status_code < 300)
 		response.init_body(status_code, request, response, *server, server->envp);
 	if (status_code >= 300)
 		response.init_error_body(status_code, request, *server, server->envp);

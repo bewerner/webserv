@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <memory>
 #include <ctime>
+#include <system_error>
 
 #include <sys/socket.h>
 #include <sys/errno.h>
@@ -132,7 +133,7 @@ struct Response
 	std::string							path_info;
 
 	void	set_location_config(const std::string& request_target);
-	void	set_response_target(std::string request_target, int& status_code);
+	void	set_response_target(std::string request_target, int& status_code, std::string method);
 	void	init_body(int& status_code, const Request& request, const Response& response, const Server& server, char** envp);
 	void	init_error_body(int& status_code, const Request& request, const Server& server, char** envp);
 	void	create_header(const int status_code);
@@ -173,6 +174,9 @@ struct Connection
 	void	receive_header(void);
 	void	receive_body(void);
 	void	init_response(void);
+
+	void	check_dav_methods(void);
+	void	delete_response_target(void);
 };
 
 struct LocationConfig
