@@ -1,12 +1,8 @@
-<HTML>
-    <HEAD></HEAD>
-    <BODY>
-    <FORM ACTION="cgi-bin/upload.pl" METHOD="post" ENCTYPE="multipart/form-data">
-    Photo to Upload: <INPUT TYPE="file" NAME="photo">
-    <br><br>
-    Your Email Address: <INPUT TYPE="text" NAME="email_address">
-    <br><br>
-    <INPUT TYPE="submit" NAME="Submit" VALUE="Submit Form">
-    </FORM>
-    </BODY>
-  </HTML>
+<html>
+<body>
+<form action="/cgi-bin/upload.pl" method="post" enctype="multipart/form-data">
+  Select file: <input type="file" name="file">
+  <input type="submit" value="Upload">
+</form>
+</body>
+</html>

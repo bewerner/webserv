@@ -57,14 +57,15 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 			status_code = 500;
 			return ;
 		}
-		set_location_config(config->index);
-		config = location_config;
 		request_target = config->index;
+		set_location_config(request_target);
+		config = location_config;
 		directory_request = (request_target.back() == '/');
 		absolute_index    = (config->index.front() == '/');
 		directory_index   = (config->index.back()  == '/');
-		if (directory_request)
-			request_target.clear();
+		// if (directory_request)
+		// 	request_target.clear();
+		std::cout << "tmp -> " << config->root << " " << request_target << std::endl;
 	}
 
 	// if (config.cgi)
@@ -102,16 +103,16 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		response_target = config->root + request_target;
 }
 
-void	Response::init_cgi(int& status_code, char** envp, const Server& server, const Request& request, const Response& response)
+void	Response::init_cgi(int& status_code, const Server& server, const Request& request, const Response& response)
 {
 	(void)status_code;
 	cgi.init_pipes();
 	cgi.fork();
 	cgi.setup_io();
-	cgi.exec(envp, server, request, response);
+	cgi.exec(server, request, response);
 }
 
-void	Response::init_body(int& status_code, const Request& request, const Response& response, const Server& server, char** envp)
+void	Response::init_body(int& status_code, const Request& request, const Response& response, const Server& server)
 {
 	bool directory_request = (response_target.back() == '/');
 
@@ -157,7 +158,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	if (location_config->cgi)
 	{
 	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
-		init_cgi(status_code, envp, server, request, response);
+		init_cgi(status_code, server, request, response);
 		if (cgi.fail)
 		{
 			status_code = 500;
@@ -174,7 +175,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	}
 }
 
-void	Response::init_error_body(int& status_code, const Request& request, const Server& server, char** envp)
+void	Response::init_error_body(int& status_code, const Request& request, const Server& server)
 {
 	if (server_config->error_page.find(status_code) != server_config->error_page.end())
 	{
@@ -183,7 +184,7 @@ void	Response::init_error_body(int& status_code, const Request& request, const S
 		{
 			set_location_config(response_target);
 			set_response_target(response_target, status_code, "GET");
-			init_body(status_code, request, *this, server, envp);
+			init_body(status_code, request, *this, server);
 		}
 		else
 		{
@@ -212,15 +213,18 @@ static std::string get_date()
 
 void	Response::create_header(const int status_code)
 {
+	if (status_code == 500)
+		connection = "close";
 	std::ostringstream oss;
 	oss			<< "HTTP/1.1 "				<< status_code << ' ' << status_text		<< "\r\n"
 				<< "Server: "				<< server									<< "\r\n"
-				<< "Date: "					<< get_date()								<< "\r\n"
-				<< "Content-Type: "			<< content_type								<< "\r\n";
-	if (transfer_encoding.empty())
-		oss		<< "Content-Length: "		<< content_length							<< "\r\n";
-	else
+				<< "Date: "					<< get_date()								<< "\r\n";
+	if (status_code != 204)
+		oss		<< "Content-Type: "			<< content_type								<< "\r\n";
+	if (!transfer_encoding.empty())
 		oss		<< "Transfer-Encoding: "	<< transfer_encoding						<< "\r\n";
+	else if (status_code != 204)
+		oss		<< "Content-Length: "		<< content_length							<< "\r\n";
 	if (!location.empty() && location.find("http://") == 0)
 		oss		<< "Location: "				<< location									<< "\r\n";
 	oss			<< "Connection: "			<< connection								<< "\r\n";
@@ -287,14 +291,7 @@ void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& s
 		//validate cgi header
 		if (!std::regex_match(cgi.header, std::regex(R"((\s*?\S+:.*\r?\n)+|\s*)", std::regex_constants::icase)))
 		{
-			cgi.fail = true;
-			status_code = 500;
-			status_text = "Internal Server Error";
-			generate_error_page(status_code);
-			connection = "close";
-			create_header(status_code);
-			std::cout << "xxxxxxxxxxxxxxxxxxxxWRONGxCGIxHEADERxFORMAT" << std::endl;
-			return ;
+			throw std::runtime_error("   wrong cgi header format -> 500");
 		}
 		//parse cgi header
 		if (std::regex_search(cgi.header, match, std::regex(R"(^\s*Content-Type:.*?(\S+.*))", std::regex_constants::icase)))

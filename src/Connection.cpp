@@ -1,30 +1,23 @@
 #include "webserv.hpp"
-#include <filesystem>
-namespace fs = std::filesystem;
 
 Connection::Connection(Server* server) : server(server)
 {
 	std::cout  << "<- accept connection ->" << std::endl;
 	socklen_t addrlen = sizeof(server->sockaddr);
 	fd = accept(server->socket, (struct sockaddr*)& server->sockaddr, &addrlen);
-	if (fd < 0)
-		throw std::runtime_error("Failed to grab connection");
-
-	// int opt = 1;
-	// setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
-	// struct linger linger_opt = { 0, 0 }; // Linger active, timeout 0 seconds
-	// setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger_opt, sizeof(linger_opt));
-
-	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
-		throw std::runtime_error("fcntl failed");
+	if (fd < 0 || fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
+	{
+		std::cerr << "ERROR: failed to accept connection: " << strerror(errno);
+		close = true;
+	}
 	timeout = std::chrono::steady_clock::now() + server->request_timeout;
 }
 
 Connection::~Connection(void)
 {
-	std::cout << "X  close connection" << " with fd " << fd << std::endl;
-	::close(fd);
+	std::cout << "X  close connection with fd " << fd << std::endl;
+	if (fd >= 0)
+		::close(fd);
 }
 
 static void	normalize_line_feed(std::vector<char>& buffer)
@@ -116,6 +109,8 @@ void	Connection::receive_header(void)
 
 void	Connection::check_dav_methods(void)
 {
+	if (request.method != "DELETE")
+		return ;
 	if (response.location_config->dav_methods.find("DELETE") == response.location_config->dav_methods.end())
 	{
 		status_code = 405;
@@ -169,9 +164,9 @@ void	Connection::init_response(void)
 	if (status_code < 300 && request.method == "DELETE")
 		delete_response_target();
 	else if (status_code < 300)
-		response.init_body(status_code, request, response, *server, server->envp);
+		response.init_body(status_code, request, response, *server);
 	if (status_code >= 300)
-		response.init_error_body(status_code, request, *server, server->envp);
+		response.init_error_body(status_code, request, *server);
 	if (!status_code)
 		status_code = 200;
 
@@ -188,7 +183,7 @@ void	Connection::init_response(void)
 		response.transfer_encoding = "chunked";
 	else if (response.ifs_body)
 		response.content_length = std::to_string(std::filesystem::file_size(response.response_target));
-	else
+	else if (status_code >= 300)
 	{
 		if (response.str_body.empty())
 			response.generate_error_page(status_code);
@@ -203,7 +198,6 @@ void	Connection::receive_body(void)
 	std::cout  << "   forwarding body to cgi -->" << std::endl;
 	std::cout  << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 
-
 	//UNCHUNK CHUNKED BODY HERE
 
 	// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxRECEIVExBODYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
@@ -211,11 +205,11 @@ void	Connection::receive_body(void)
 	ssize_t sent = write(response.cgi.pipe_into_cgi[1], buffer.data(), size);
 	if (sent == -1)
 	{
-		std::cout << "write to cgi FAIL" << std::endl;
+		std::cout << "write to cgi FAIL a" << std::endl;
 	}
 	if (sent == -1 && !response.cgi.is_running())
 	{
-		std::cout << "write to cgi FAIL" << std::endl;
+		std::cout << "write to cgi FAIL b" << std::endl;
 		response.cgi.fail = true;
 		request.received = true;
 		status_code = 500;
@@ -250,10 +244,11 @@ void	Connection::receive(void)
 		std::cout << "yes" << std::endl;
 	else
 		std::cout << "no" << std::endl;
-	std::cout << "   client speaking?: " << (*revents & POLLIN) << std::endl;
+	std::cout << "   client speaking?: " << pollin() << std::endl;
+	std::cout << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 	// sleep(1);
 
-	if (buffer.size() < BUFFER_SIZE && *revents & POLLIN)																// only receive new bytes if there is space in the buffer
+	if (buffer.size() < BUFFER_SIZE && pollin())																// only receive new bytes if there is space in the buffer
 	{
 		size_t capacity = BUFFER_SIZE - buffer.size();
 		// if (request.header_received && request.content_length_specified)
@@ -286,6 +281,7 @@ void	Connection::receive(void)
 		receive_body();
 	if (!request.received && request.header_received && request.method == "POST" && !response.cgi.is_running())
 	{
+		std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX cgi aborted before fully receiving request body";
 		response.cgi.fail = true;
 		status_code = 500;
 		init_response();
@@ -356,15 +352,7 @@ void	Connection::respond(void)
 		// }
 		if (!received && !response.cgi.header_extracted)
 		{
-			std::cout << "   cgi reached EOF before receiving the cgi_header -> 500" << std::endl;
-			// response.cgi.eof = true;
-			response.cgi.fail = true;
-			status_code = 500;
-			response.status_text = "Internal Server Error";
-			response.generate_error_page(status_code);
-			response.connection = "close";
-			response.create_header(status_code);
-			return ;
+			throw std::runtime_error("   cgi reached EOF before receiving the cgi_header -> 500");
 		}
 		if (!received && response.cgi.header_extracted)
 		{
@@ -417,7 +405,7 @@ void	Connection::respond(void)
 	if (using_cgi && !response.cgi.header_extracted)
 		return ;
 
-	if (*revents & POLLOUT)
+	if (pollout())
 	{
 		ssize_t sent = send(fd, buffer.data(), buffer.size(), 0);
 		std::cout << "   sent " << sent << " bytes to client    buffersize: " << buffer.size() << std::endl;
@@ -434,7 +422,7 @@ void	Connection::respond(void)
 	std::cout << "using cgi:  " << using_cgi << std::endl;
 	std::cout << "cgi.eof:    " << response.cgi.eof << std::endl;
 	std::cout << "buffersize: " << buffer.size() << std::endl;
-	std::cout << "pollout: "    << (*revents & POLLOUT) << std::endl;
+	std::cout << "pollout: "    << pollout() << std::endl;
 
 	if ((!response.ifs_body || response.ifs_body->eof()) && (!using_cgi || response.cgi.eof) && buffer.empty())
 	{
@@ -459,4 +447,44 @@ void	Connection::respond(void)
 		status_code = 0;
 		std::cout << "✓ close: " << close << std::endl;
 	}
+}
+
+void	Connection::handle_exception(const std::exception& e)
+{
+	std::cerr << "\n\n\n\n\n" << std::endl;
+	std::cerr << e.what() << std::endl;
+	std::cerr << "\n\n\n\n\n" << std::endl;
+	if (exception)
+	{
+		close = true;
+		return ;
+	}
+
+	exception = true;
+	response.cgi.fail = true;
+	events = POLLOUT;
+	status_code = 500;
+	response.status_text = "Internal Server Error";
+	response.generate_error_page(status_code);
+	response.create_header(status_code);
+}
+
+bool	Connection::pollin(void)
+{
+	return (revents && *revents & POLLIN);
+}
+
+bool	Connection::pollout(void)
+{
+	return (revents && *revents & POLLOUT);
+}
+
+bool	Connection::pollhup(void)
+{
+	return (revents && *revents & POLLHUP);
+}
+
+bool	Connection::pollerr(void)
+{
+	return (revents && *revents & POLLERR);
 }

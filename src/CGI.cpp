@@ -9,20 +9,10 @@ void	CGI::init_pipes(void)
 	(
 		pipe(pipe_into_cgi) < 0 ||
 		pipe(pipe_from_cgi) < 0 ||
-		fcntl(pipe_into_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
 		fcntl(pipe_into_cgi[1], F_SETFL, O_NONBLOCK) < 0 ||
-		fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0 ||
-		fcntl(pipe_from_cgi[1], F_SETFL, O_NONBLOCK) < 0
+		fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0
 	)
 		fail = true;
-
-
-	// if
-	// (
-	// 	pipe(pipe_into_cgi) < 0 ||
-	// 	pipe(pipe_from_cgi) < 0
-	// )
-	// 	fail = true;
 }
 
 void	CGI::fork(void)
@@ -62,7 +52,7 @@ void	CGI::setup_io(void)
 	}
 }
 
-void	CGI::exec(char** envp, const Server& server, const Request& request, const Response& response)
+void	CGI::exec(const Server& server, const Request& request, const Response& response)
 {
 	if (fail || pid != 0)
 		return ;
@@ -95,7 +85,7 @@ void	CGI::exec(char** envp, const Server& server, const Request& request, const 
 	chdir(pwd.c_str());
 
 
-	static std::string env_path = std::getenv("PATH") ? std::getenv("PATH") : "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin";
+	std::string env_path = std::getenv("PATH") ? std::getenv("PATH") : "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin";
 
 	std::vector<std::string> env_str;
 	env_str.emplace_back("SERVER_SIGNATURE=");
@@ -157,8 +147,6 @@ void	CGI::exec(char** envp, const Server& server, const Request& request, const 
 		std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
 		exit(EXIT_FAILURE);
 	}
-	(void)envp;
-	(void)request;
 }
 
 void	CGI::done_writing_into_cgi(void)

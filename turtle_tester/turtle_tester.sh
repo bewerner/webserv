@@ -37,8 +37,11 @@ for DIR in $(ls -d */); do
 	fi
 
 
+	chmod +x $PWD/$DIR/prepare.sh > /dev/null 2>&1
+	chmod +x $PWD/$DIR/cleanup.sh > /dev/null 2>&1
 
 	# NGINX
+	(cd $PWD/$DIR && $PWD/prepare.sh > /dev/null 2>&1)
 	nginx -c "$PWD/$DIR/conf.conf" -p $WEBSERV_DIR -g "daemon off;" 2> "$DIR/logs/nginx.txt" & NGINX_PID=$!
 	disown $NGINX_PID
 	sleep $SLEEP_TIME
@@ -52,10 +55,12 @@ for DIR in $(ls -d */); do
 	fi
 	kill -SIGTERM $NGINX_PID 2> /dev/null
 	wait $NGINX_PID 2> /dev/null
+	(cd $PWD/$DIR && $PWD/cleanup.sh > /dev/null 2>&1)
 
 	sleep $SLEEP_TIME
 
 	# WEBSERV
+	(cd $PWD/$DIR && $PWD/prepare.sh > /dev/null 2>&1)
 	cd $WEBSERV_DIR
 	./webserv "$TURTLE_DIR/$DIR/conf.conf" > /dev/null 2> "$TURTLE_DIR/$DIR/logs/webserv.txt" & WEBSERV_PID=$!
 	disown $WEBSERV_PID
@@ -72,6 +77,7 @@ for DIR in $(ls -d */); do
 	kill -SIGINT $WEBSERV_PID 2> /dev/null
 	wait $WEBSERV_PID 2> /dev/null
 	cd $TURTLE_DIR
+	(cd $PWD/$DIR && $PWD/cleanup.sh > /dev/null 2>&1)
 
 
 
