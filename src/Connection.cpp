@@ -107,11 +107,16 @@ void	Connection::receive_header(void)
 	}
 }
 
-void	Connection::check_dav_methods(void)
+void	Connection::validate_method(void)
 {
 	if (request.method == "DELETE" && response.location_config->dav_methods != "DELETE")
-	{
 		status_code = 405;
+	else if (request.method == "POST" && response.location_config->cgi == false)
+		status_code = 405;
+	else if (request.method == "POST" && request.content_length > response.location_config->client_max_body_size)
+	{
+		status_code = 413;
+		response.connection = "close";
 	}
 }
 
@@ -156,7 +161,7 @@ void	Connection::init_response(void)
 	if (status_code < 300)
 		response.set_location_config(request.request_target);
 
-	check_dav_methods();
+	validate_method();
 	if (status_code < 300)
 		response.set_response_target(request.request_target, status_code, request.method);
 	if (status_code < 300 && request.method == "DELETE")
@@ -193,6 +198,8 @@ void	Connection::init_response(void)
 
 void	Connection::receive_body(void)
 {
+	if (status_code >= 300)
+		return ;
 	std::cout  << "   forwarding body to cgi -->" << std::endl;
 	std::cout  << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 
@@ -279,10 +286,11 @@ void	Connection::receive(void)
 		receive_body();
 	if (!request.received && request.header_received && request.method == "POST" && !response.cgi.is_running())
 	{
-		std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX cgi aborted before fully receiving request body";
-		response.cgi.fail = true;
-		status_code = 500;
-		init_response();
+		std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX cgi aborted before fully receiving request body" << std::endl;
+		std::cout << "buffer size: " << buffer.size() << std::endl;
+		// response.cgi.fail = true;
+		// status_code = 500;
+		// init_response();
 		request.received = true;
 	}
 
@@ -293,8 +301,9 @@ void	Connection::receive(void)
 	}
 
 
-	if (request.received)
+	if (request.received || status_code >= 300)
 	{
+		buffer.clear();
 		response.cgi.done_writing_into_cgi();
 		std::cout << "   request fully received" << std::endl;
 		timeout = std::chrono::steady_clock::now() + server->response_timeout;

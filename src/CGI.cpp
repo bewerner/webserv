@@ -127,7 +127,7 @@ void	CGI::exec(const Server& server, const Request& request, const Response& res
 		env_str.emplace_back("CONTENT_LENGTH=" + std::to_string(request.content_length));
 	if (!request.content_type.empty())
 		env_str.emplace_back("CONTENT_TYPE=" + request.content_type);
-	std::cerr << "-------------------------------------------------------------------------------------------------------------- " << request.content_type << std::endl;
+	// std::cerr << "-------------------------------------------------------------------------------------------------------------- " << request.content_type << std::endl;
 	std::vector<char*> env;
 	for (std::string& str : env_str)
 		env.emplace_back(str.data());
