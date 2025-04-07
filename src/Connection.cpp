@@ -112,7 +112,10 @@ void	Connection::validate_method(void)
 	if (request.method == "DELETE" && response.location_config->dav_methods != "DELETE")
 		status_code = 405;
 	else if (request.method == "POST" && response.location_config->cgi == false)
+	{
 		status_code = 405;
+		response.connection = "close";
+	}
 	else if (request.method == "POST" && request.content_length > response.location_config->client_max_body_size)
 	{
 		status_code = 413;
