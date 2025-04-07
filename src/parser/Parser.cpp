@@ -115,6 +115,7 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 	{
 		endsWithSemicolon = true;
 		value.pop_back();
+		value = removeSpaces(value);
 	}
 
 	if (value.empty())
@@ -151,19 +152,7 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 	}
 	else if (key == "dav_methods")
 	{
-		std::istringstream methodStream(value);
-		std::string method;
-		while (methodStream >> method)
-		{
-			if (method != "GET" && method != "POST" && method != "DELETE")
-			{
-				throw std::runtime_error("Invalid HTTP method in dav_methods: " + method);
-			}
-			location.dav_methods.insert(method);
-		}
-		
-		if (location.dav_methods.empty())
-			throw std::runtime_error("No valid methods specified in dav_methods directive");
+		location.dav_methods = value;
 	}
 	else if (key == "client_max_body_size")
 	{

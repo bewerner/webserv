@@ -182,7 +182,7 @@ struct Connection
 	void	init_response(void);
 	void	handle_exception(const std::exception& e);
 
-	void	check_dav_methods(void);
+	void	validate_method(void);
 	void	delete_response_target(void);
 };
 
@@ -191,12 +191,12 @@ struct LocationConfig
 	std::string										path;
 	std::string										root;
 	std::string										alias;
-	std::set<std::string>							dav_methods;
+	std::string										dav_methods;
 	bool											autoindex = false;
 	std::string										index;
 	std::string										client_body_temp_path;
 	bool											cgi = false;
-	size_t											client_max_body_size = 0;
+	size_t											client_max_body_size;
 	std::map<int, std::string>						error_page;
 };
 
@@ -208,7 +208,7 @@ struct ServerConfig
 	std::string										root = std::filesystem::current_path().string() + "/html";
 	std::string										index = "index.html";
 	std::map<int, std::string>						error_page;
-	size_t											client_max_body_size = 0;
+	size_t											client_max_body_size = 1073741824; // 1 MB
 	std::string										server_name;
 	bool											autoindex = false;
 	std::vector<LocationConfig>						locations;

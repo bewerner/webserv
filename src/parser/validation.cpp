@@ -208,7 +208,6 @@ LocationConfig get_fallback_location(const ServerConfig& server_config)
 	LocationConfig config;
 	config.path = "/";
 	config.root = server_config.root;
-	config.dav_methods = std::set<std::string>({"GET", "POST", "DELETE"});
 	config.autoindex = server_config.autoindex;
 	config.index = server_config.index;
 	config.client_max_body_size = server_config.client_max_body_size;
@@ -374,49 +373,15 @@ void validateUploadDir(const std::vector<Server>& servers)
 
 void validateDavMethods(std::vector<Server>& servers)
 {
-	static const std::set<std::string> validMethods = {
-		"GET", "POST", "DELETE"
-	};
-
 	for (const auto& server : servers)
 	{
 		for (const auto& config : server.conf)
 		{
 			for (const auto& loc : config.locations)
 			{
-				for (const auto& method : loc.dav_methods)
+				if (!loc.dav_methods.empty() && loc.dav_methods != "DELETE")
 				{
-					if (validMethods.find(method) == validMethods.end())
-					{
-						std::cerr << "Warning: Invalid HTTP method in dav_methods: " 
-							<< method << " in location " << loc.path << std::endl;
-					}
-				}
-				
-				if (loc.dav_methods.find("GET") == loc.dav_methods.end())
-				{
-					std::cerr << "Warning: GET method not allowed in location " 
-						<< loc.path << ". This might cause issues with browsers." << std::endl;
-				}
-				
-				if (loc.dav_methods.empty())
-				{
-					std::cerr << "Warning: No HTTP methods allowed in location " 
-						<< loc.path << ". Adding default methods (GET)." << std::endl;
-					
-					for (Server& s : servers)
-					{
-						for (ServerConfig& c : s.conf)
-						{
-							for (LocationConfig& l : c.locations)
-							{
-								if (l.path == loc.path && l.dav_methods.empty())
-								{
-									l.dav_methods.insert("GET");
-								}
-							}
-						}
-					}
+					throw std::invalid_argument("Critical Error: Invalid HTTP method in dav_methods: " + loc.dav_methods + " in location " + loc.path + " (only DELETE is allowed)");
 				}
 			}
 		}
@@ -494,10 +459,9 @@ void validateErrorPage(const std::vector<Server>& servers)
 			{
 				for (const auto& [errorCode, errorPage] : loc.error_page)
 				{
-					if (errorCode < 100 || errorCode > 599)
+					if (errorCode < 300 || errorCode > 599)
 					{
-						std::cerr << "Warning: Invalid HTTP error code: " 
-							<< errorCode << " in location " << loc.path << std::endl;
+						throw std::invalid_argument("Critical Error: Invalid HTTP error code: " + std::to_string(errorCode) + " in location " + loc.path + "  (value must be between 300 and 599)");
 					}
 					
 					try {
