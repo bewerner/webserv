@@ -106,7 +106,7 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 void	Response::init_cgi(int& status_code, const Server& server, const Request& request, const Response& response)
 {
 	(void)status_code;
-	cgi.init_pipes();
+	cgi.init_pipes(server.connections.front().buffer_size);
 	cgi.fork();
 	cgi.setup_io();
 	cgi.exec(server, request, response);
@@ -270,7 +270,7 @@ static std::string	entry_listing(const std::filesystem::directory_entry& entry, 
 	return (oss.str());
 }
 
-void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code)
+void	Response::extract_cgi_header(std::vector<char>& buf, ssize_t& size, int& status_code)
 {
 	cgi.header.insert(cgi.header.end(), buf.begin(), buf.begin() + size);
 	std::smatch match;

@@ -17,9 +17,11 @@ void	init_sockets(std::vector<Server>& servers)
 		int opt = 1;
 		if (setsockopt(server.socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
 			throw std::runtime_error("setsockopt failed");
+		opt = 1;
+		if (setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+			throw std::runtime_error("setsockopt failed");
 		if (fcntl(server.socket, F_SETFL, O_NONBLOCK) < 0)
 			throw std::runtime_error("fcntl failed");
-
 		init_sockaddr(server);
 
 		while (bind(server.socket, (sockaddr*)& server.sockaddr, sizeof(server.sockaddr)) < 0)

@@ -37,12 +37,13 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 
 // typedef std::chrono::steady_clock::time_point time_point;
 // #define BUFFER_SIZE (size_t)1024*16
 // #define BUFFER_SIZE (size_t)1024*64
-#define BUFFER_SIZE (size_t)1024*1024
+// #define BUFFER_SIZE (size_t)1024*1024*2
 // #define BUFFER_SIZE (size_t)2999999
 // #define BUFFER_SIZE (size_t)1
 
@@ -92,7 +93,7 @@ struct CGI
 	short*	revents_write_into_cgi = nullptr;
 	short*	revents_read_from_cgi = nullptr;
 
-	void	init_pipes(void);
+	void	init_pipes(size_t buffer_size);
 	void	fork(void);
 	void	setup_io(void);
 	void	exec(const Server& server, const Request& request, const Response& response);
@@ -143,7 +144,7 @@ struct Response
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
 	void	init_cgi(int& status_code, const Server& server, const Request& request, const Response& response);
-	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code);
+	void	extract_cgi_header(std::vector<char>& buf, ssize_t& size, int& status_code);
 };
 
 struct Connection
@@ -163,6 +164,8 @@ struct Connection
 
 	short*				revents = nullptr;
 
+	static size_t				buffer_size;
+	static std::vector<char>	shared_buffer;
 	std::vector<char>	buffer;
 
 	Connection(Server* server);
@@ -223,8 +226,8 @@ struct Server
 	std::list<Connection>							connections;
 	int												socket = -1;
 	sockaddr_in										sockaddr;
-	std::chrono::seconds							request_timeout = std::chrono::seconds(35);
-	std::chrono::seconds							response_timeout = std::chrono::seconds(35);
+	std::chrono::seconds							request_timeout = std::chrono::seconds(1);
+	std::chrono::seconds							response_timeout = std::chrono::seconds(1);
 
 	short*											revents;
 

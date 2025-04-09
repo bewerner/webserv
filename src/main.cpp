@@ -108,7 +108,10 @@ int	main(int argc, char** argv)
 					else if (connection.pollout() || cgi.pollin())
 						connection.respond();
 					else if (connection.pollerr() || connection.pollhup())
+					{
+						std::cerr << "pollerr/pollhup" << std::endl;
 						connection.close = true;
+					}
 				}
 				catch (const std::exception& e)
 				{

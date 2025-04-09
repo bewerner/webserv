@@ -1,14 +1,40 @@
 #include "webserv.hpp"
 
+size_t Connection::buffer_size = 0;  // Initialize buffer_size (choose an appropriate initial value)
+std::vector<char> Connection::shared_buffer;  // Static vector, initialized to an empty vector
+
+static size_t	get_socket_size(int fd)
+{
+	int size = 0;
+	socklen_t optlen = sizeof(size);
+	getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, &optlen);
+	return (size);
+}
+
 Connection::Connection(Server* server) : server(server)
 {
 	std::cout  << "<- accept connection ->" << std::endl;
-	socklen_t addrlen = sizeof(server->sockaddr);
-	fd = accept(server->socket, (struct sockaddr*)& server->sockaddr, &addrlen);
+	struct sockaddr_in client_addr;
+	socklen_t addrlen = sizeof(client_addr);
+	fd = accept(server->socket, (struct sockaddr*)&client_addr, &addrlen);
 	if (fd < 0 || fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		std::cerr << "ERROR: failed to accept connection: " << strerror(errno);
 		close = true;
+		return ;
+	}
+	int flag = 1;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
+	{
+		std::cerr << "ERROR: failed to accept connection: " << strerror(errno);
+		close = true;
+		return ;
+	}
+	if (!shared_buffer.capacity())
+	{
+		shared_buffer.reserve(get_socket_size(fd));
+		buffer_size = shared_buffer.capacity();
+		std::cerr << "BUFFER_SIZE: " << buffer_size << std::endl;
 	}
 	timeout = std::chrono::steady_clock::now() + server->request_timeout;
 }
@@ -65,6 +91,7 @@ void	Connection::receive_header(void)
 
 	if (buffer.empty() || buffer.front() == '\xFF' || buffer.front() == '\x04')					// close without response (for example when pressing ctrl+c in telnet)
 	{
+		std::cerr << "empty request" << std::endl;
 		close = true;
 		return ;
 	}
@@ -257,22 +284,25 @@ void	Connection::receive(void)
 	std::cout << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 	// sleep(1);
 
-	if (buffer.size() < BUFFER_SIZE && pollin())																// only receive new bytes if there is space in the buffer
+	if (buffer.size() < buffer_size && pollin())																// only receive new bytes if there is space in the buffer
 	{
-		size_t capacity = BUFFER_SIZE - buffer.size();
+		size_t capacity = buffer_size - buffer.size();
 		// if (request.header_received && request.content_length_specified)
 		// 	capacity = std::min(capacity, request.remaining_bytes);									// limit capacity by content length specified in header
 		if (capacity)
 		{
-			std::array<char, BUFFER_SIZE> tmp;
-			ssize_t	bytes_received = recv(fd, tmp.data(), capacity, 0);				// try to receive as many bytes as fit in the buffer
+			// std::array<char, buffer_size> tmp;
+			// static std::vector<char> tmp;
+			// if (!tmp.capacity())
+			// 	tmp.reserve(buffer_size);
+			ssize_t	bytes_received = recv(fd, shared_buffer.data(), capacity, 0);				// try to receive as many bytes as fit in the buffer
 			std::cout << "   received from client: " << bytes_received << std::endl;
 			std::cout << "   received from client: " << strerror(errno) << std::endl;
 			if (bytes_received > 0)
 			{
 				// if (request.header_received && request.content_length_specified)
 				// 	request.remaining_bytes -= bytes_received;
-				buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);						// append received bytes to buffer
+				buffer.insert(buffer.end(), shared_buffer.begin(), shared_buffer.begin() + bytes_received);						// append received bytes to buffer
 			}
 		}
 	}
@@ -352,9 +382,9 @@ void	Connection::respond(void)
 	if (using_cgi && response.cgi.pollin() && !response.cgi.eof)
 	{
 		std::cout << "<- reading from cgi" << std::endl;
-		const size_t capacity = BUFFER_SIZE - buffer.size();
-		std::array<char, BUFFER_SIZE> buf;
-		ssize_t received = read(response.cgi.pipe_from_cgi[0], &buf, capacity);
+		const size_t capacity = buffer_size - buffer.size();
+		// std::array<char, buffer_size> shared_buffer;
+		ssize_t received = read(response.cgi.pipe_from_cgi[0], shared_buffer.data(), capacity);
 		std::cout << "   received from cgi: " << received << "   capacity: " << capacity << std::endl;
 		// if (!received)
 		// {
@@ -373,7 +403,7 @@ void	Connection::respond(void)
 		if (received > 0 && !response.cgi.header_extracted)
 		{
 			std::cout << "   extracting cgi header" << std::endl;
-			response.extract_cgi_header(buf, received, status_code);
+			response.extract_cgi_header(shared_buffer, received, status_code);
 			if (!response.cgi.fail && response.cgi.header_extracted)
 			{
 				std::cout << "   cgi header extracted" << std::endl;
@@ -385,7 +415,7 @@ void	Connection::respond(void)
 				return ;
 		}
 
-		// for (char c : buf)
+		// for (char c : shared_buffer)
 		// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
 		//CREATE CHUNK HEAD
 		if (response.cgi.header_extracted)
@@ -394,7 +424,7 @@ void	Connection::respond(void)
 
 			std::string chunk_size = (std::ostringstream{} << std::hex << received << "\r\n").str();
 			buffer.insert(buffer.end(), chunk_size.begin(), chunk_size.end());
-			buffer.insert(buffer.end(), buf.begin(), buf.begin() + received);
+			buffer.insert(buffer.end(), shared_buffer.begin(), shared_buffer.begin() + received);
 			static const std::string chunk_end = "\r\n\r\n";
 			buffer.insert(buffer.end(), chunk_end.begin(), chunk_end.end());
 			if (!received)
@@ -405,12 +435,12 @@ void	Connection::respond(void)
 		return ;
 	// else if (using_cgi)
 	// 	return ;
-	else if (response.ifs_body && !response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
+	else if (response.ifs_body && !response.ifs_body->eof() && buffer.size() < buffer_size)
 	{
-		const size_t capacity = BUFFER_SIZE - buffer.size();
-		std::array<char, BUFFER_SIZE> buf;
-		response.ifs_body->read(buf.data(), capacity);
-		buffer.insert(buffer.end(), buf.begin(), buf.begin() + response.ifs_body->gcount());
+		const size_t capacity = buffer_size - buffer.size();
+		// std::array<char, buffer_size> shared_buffer;
+		response.ifs_body->read(shared_buffer.data(), capacity);
+		buffer.insert(buffer.end(), shared_buffer.begin(), shared_buffer.begin() + response.ifs_body->gcount());
 	}
 
 	if (using_cgi && !response.cgi.header_extracted)
@@ -447,7 +477,7 @@ void	Connection::respond(void)
 		// 				<< "------------------------------------------------------\n\n\n" << std::endl;
 		// }
 		// exit(0);
-		if (response.connection != "keep-alive")
+		// if (response.connection != "keep-alive")
 			close = true;
 
 		events = POLLIN;
@@ -467,6 +497,7 @@ void	Connection::handle_exception(const std::exception& e)
 	std::cerr << "\n\n\n\n\n" << std::endl;
 	if (exception)
 	{
+		std::cerr << "exception" << std::endl;
 		close = true;
 		return ;
 	}

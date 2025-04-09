@@ -1,18 +1,75 @@
 #include "webserv.hpp"
 
-void	CGI::init_pipes(void)
+void	CGI::init_pipes(size_t buffer_size)
 {
 	if (fail)
 		return ;
 
 	if
 	(
-		pipe(pipe_into_cgi) < 0 ||
-		pipe(pipe_from_cgi) < 0 ||
+		// pipe(pipe_into_cgi) < 0 ||
+		// pipe(pipe_from_cgi) < 0 ||
+		socketpair(AF_UNIX, SOCK_STREAM, 0, pipe_into_cgi) < 0 ||
+		socketpair(AF_UNIX, SOCK_STREAM, 0, pipe_from_cgi) < 0 ||
 		fcntl(pipe_into_cgi[1], F_SETFL, O_NONBLOCK) < 0 ||
 		fcntl(pipe_from_cgi[0], F_SETFL, O_NONBLOCK) < 0
 	)
 		fail = true;
+	{
+		int size = buffer_size;
+		setsockopt(pipe_into_cgi[0], SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+		setsockopt(pipe_into_cgi[1], SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+		setsockopt(pipe_into_cgi[0], SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+		setsockopt(pipe_into_cgi[1], SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_from_cgi[0], SOL_SOCKET, SO_SNDBUF, &actual, &optlen);
+		std::cerr << "Socket cgi send buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_from_cgi[0], SOL_SOCKET, SO_RCVBUF, &actual, &optlen);
+		std::cerr << "Socket cgi recv buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_from_cgi[1], SOL_SOCKET, SO_SNDBUF, &actual, &optlen);
+		std::cerr << "Socket cgi send buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_from_cgi[1], SOL_SOCKET, SO_RCVBUF, &actual, &optlen);
+		std::cerr << "Socket cgi recv buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_into_cgi[0], SOL_SOCKET, SO_SNDBUF, &actual, &optlen);
+		std::cerr << "Socket cgi send buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_into_cgi[0], SOL_SOCKET, SO_RCVBUF, &actual, &optlen);
+		std::cerr << "Socket cgi recv buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_into_cgi[1], SOL_SOCKET, SO_SNDBUF, &actual, &optlen);
+		std::cerr << "Socket cgi send buffer size : " << actual << std::endl;
+	}
+	{
+		int actual = 0;
+		socklen_t optlen = sizeof(actual);
+		getsockopt(pipe_into_cgi[1], SOL_SOCKET, SO_RCVBUF, &actual, &optlen);
+		std::cerr << "Socket cgi recv buffer size : " << actual << std::endl;
+	}
 }
 
 void	CGI::fork(void)
