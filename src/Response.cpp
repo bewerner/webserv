@@ -339,6 +339,7 @@ void	Response::generate_directory_listing(const Request& request)
 	oss	<< "</pre><hr></body>\r\n</html>"															<< "\r\n";
 	str_body = oss.str();
 
+	content_type = "text/html";
 	transfer_encoding = "chunked";
 	std::string chunk_size = (std::ostringstream{} << std::hex << str_body.length() << "\r\n").str();
 	
@@ -363,6 +364,7 @@ void	Response::generate_error_page(const int status_code)
 
 	str_body = oss.str();
 	content_length = std::to_string(str_body.length());
+	content_type = "text/html";
 	transfer_encoding.clear();
 }
 
@@ -398,7 +400,7 @@ void	Response::set_status_text(const int status_code)
 		{402, "Payment Required"},
 		{403, "Forbidden"},
 		{404, "Not Found"},
-		{405, "Method Not Allowed"},
+		{405, "Not Allowed"},
 		{406, "Not Acceptable"},
 		{407, "Proxy Authentication Required"},
 		{408, "Request Timeout"},

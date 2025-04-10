@@ -130,18 +130,26 @@ void	Connection::delete_response_target(void)
 	bool is_dir = std::filesystem::is_directory(path, ec);
 	bool directory_path = response.response_target.back() == '/';
 
+	std::filesystem::path parent = path.parent_path();
+	if (directory_path)
+		parent = parent.parent_path();
+
 	if (ec == std::errc::permission_denied)
 		status_code = 403;
 	else if (ec == std::errc::no_such_file_or_directory)
 		status_code = 404;
 	else if (directory_path != is_dir)
 		status_code = 409;
+	else if (ec.value())
+		status_code = 500;
+	else if (access(parent.c_str(), W_OK) != 0)
+		status_code = 403;
 
-	if (status_code > 400)
+	if (status_code >= 400)
 		return ;
 
 	std::filesystem::remove_all(path, ec);
-	if (ec == std::errc::permission_denied)
+	if (ec.value())
 		status_code = 500;
 	else
 		status_code = 204;
@@ -394,7 +402,7 @@ void	Connection::respond(void)
 			std::string chunk_size = (std::ostringstream{} << std::hex << received << "\r\n").str();
 			buffer.insert(buffer.end(), chunk_size.begin(), chunk_size.end());
 			buffer.insert(buffer.end(), buf.begin(), buf.begin() + received);
-			static const std::string chunk_end = "\r\n\r\n";
+			static const std::string chunk_end = "\r\n";
 			buffer.insert(buffer.end(), chunk_end.begin(), chunk_end.end());
 			if (!received)
 				response.cgi.done_reading_from_cgi();
@@ -473,8 +481,11 @@ void	Connection::handle_exception(const std::exception& e)
 	exception = true;
 	response.cgi.fail = true;
 	events = POLLOUT;
-	status_code = 500;
-	response.status_text = "Internal Server Error";
+	if (auto* fs_error = dynamic_cast<const std::filesystem::filesystem_error*>(&e))
+		status_code = 403;
+	else
+		status_code = 500;
+	response.set_status_text(status_code);
 	response.generate_error_page(status_code);
 	response.create_header(status_code);
 }

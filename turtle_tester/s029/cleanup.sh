@@ -1,0 +1,1 @@
+rm -r html/not_allowed/

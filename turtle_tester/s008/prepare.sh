@@ -1,2 +1,2 @@
 mkdir -p html/test/
-chmod -rwx html/test/
+chmod -x html/test/

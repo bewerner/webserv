@@ -1,2 +1,2 @@
 touch html/test
-chmod -rw html/test
+chmod -r html/test
