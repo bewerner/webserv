@@ -339,6 +339,7 @@ void	Response::generate_directory_listing(const Request& request)
 	oss	<< "</pre><hr></body>\r\n</html>"															<< "\r\n";
 	str_body = oss.str();
 
+	content_type = "text/html";
 	transfer_encoding = "chunked";
 	std::string chunk_size = (std::ostringstream{} << std::hex << str_body.length() << "\r\n").str();
 	
@@ -363,6 +364,7 @@ void	Response::generate_error_page(const int status_code)
 
 	str_body = oss.str();
 	content_length = std::to_string(str_body.length());
+	content_type = "text/html";
 	transfer_encoding.clear();
 }
 

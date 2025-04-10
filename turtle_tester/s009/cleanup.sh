@@ -1,2 +1,2 @@
-chmod +rw html/test
+chmod +r html/test
 rm -f html/test
