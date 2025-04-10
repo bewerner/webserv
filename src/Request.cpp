@@ -181,7 +181,8 @@ void	parse_request(Request& request, int& status_code)
 		std::string value = match[2];
 
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+		if (key != "content-type")
+			std::transform(value.begin(), value.end(), value.begin(), ::tolower);
 		// trim_whitespaces(value);
 
 		if (!parse_header(request, key, value, status_code))

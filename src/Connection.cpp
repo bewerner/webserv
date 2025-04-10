@@ -3,12 +3,14 @@
 Connection::Connection(Server* server) : server(server)
 {
 	std::cout  << "<- accept connection ->" << std::endl;
-	socklen_t addrlen = sizeof(server->sockaddr);
-	fd = accept(server->socket, (struct sockaddr*)& server->sockaddr, &addrlen);
-	if (fd < 0 || fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
+	socklen_t addrlen = sizeof(sockaddr);
+	fd = accept(server->socket, (struct sockaddr*)&sockaddr, &addrlen);
+	int flag = 1;
+	if (fd < 0 || fcntl(fd, F_SETFL, O_NONBLOCK) < 0 || setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
 	{
 		std::cerr << "ERROR: failed to accept connection: " << strerror(errno);
 		close = true;
+		return ;
 	}
 	timeout = std::chrono::steady_clock::now() + server->request_timeout;
 }
@@ -30,17 +32,6 @@ static void	normalize_line_feed(std::vector<char>& buffer)
 			break ;
 	}
 }
-
-// static void	normalize_line_feed(std::string& str)
-// {
-// 	for (size_t i = 1; i < str.size(); i++)
-// 	{
-// 		if (str[i] == '\n' && str[i - 1] == '\r')
-// 			str.erase(str.begin() + i - 1);
-// 		if (i >= 1 && str[i] == '\n' && str[i - 1] == '\n')
-// 			break ;
-// 	}
-// }
 
 void	Connection::set_server_config(void)
 {
@@ -171,9 +162,9 @@ void	Connection::init_response(void)
 	if (status_code < 300 && request.method == "DELETE")
 		delete_response_target();
 	else if (status_code < 300)
-		response.init_body(status_code, request, response, *server);
+		response.init_body(status_code, request, response, *server, *this);
 	if (status_code >= 300)
-		response.init_error_body(status_code, request, *server);
+		response.init_error_body(status_code, request, *server, *this);
 	if (!status_code)
 		status_code = 200;
 
@@ -181,10 +172,6 @@ void	Connection::init_response(void)
 	if (status_code == 302)
 		response.status_text = "Moved Temporarily";
 	response.set_content_type();
-
-	std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
-	std::cout << "response.cgi.pid: >" << response.cgi.pid << "<     response.cgi.fail: >" << response.cgi.fail << "<" << std::endl;
-	std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
 
 	if (response.cgi.pid >= 0 && !response.cgi.fail)
 		response.transfer_encoding = "chunked";
@@ -204,12 +191,7 @@ void	Connection::receive_body(void)
 {
 	if (status_code >= 300)
 		return ;
-	std::cout  << "   forwarding body to cgi -->" << std::endl;
-	std::cout  << "   cgi listening?: " << response.cgi.pollout() << std::endl;
 
-	//UNCHUNK CHUNKED BODY HERE
-
-	// std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxRECEIVExBODYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
 	size_t size = std::min(buffer.size(), request.remaining_bytes);
 	ssize_t sent = write(response.cgi.pipe_into_cgi[1], buffer.data(), size);
 	if (sent == -1)
@@ -264,7 +246,7 @@ void	Connection::receive(void)
 		// 	capacity = std::min(capacity, request.remaining_bytes);									// limit capacity by content length specified in header
 		if (capacity)
 		{
-			std::array<char, BUFFER_SIZE> tmp;
+			static std::array<char, BUFFER_SIZE> tmp;
 			ssize_t	bytes_received = recv(fd, tmp.data(), capacity, 0);				// try to receive as many bytes as fit in the buffer
 			std::cout << "   received from client: " << bytes_received << std::endl;
 			std::cout << "   received from client: " << strerror(errno) << std::endl;
@@ -353,7 +335,7 @@ void	Connection::respond(void)
 	{
 		std::cout << "<- reading from cgi" << std::endl;
 		const size_t capacity = BUFFER_SIZE - buffer.size();
-		std::array<char, BUFFER_SIZE> buf;
+		static std::array<char, BUFFER_SIZE> buf;
 		ssize_t received = read(response.cgi.pipe_from_cgi[0], &buf, capacity);
 		std::cout << "   received from cgi: " << received << "   capacity: " << capacity << std::endl;
 		// if (!received)
@@ -363,11 +345,11 @@ void	Connection::respond(void)
 		// }
 		if (!received && !response.cgi.header_extracted)
 		{
-			throw std::runtime_error("   cgi reached EOF before receiving the cgi_header -> 500");
+			throw std::runtime_error("   cgi sent EOF before sending the cgi_header -> 500");
 		}
 		if (!received && response.cgi.header_extracted)
 		{
-			std::cout << "   cgi reached EOF" << std::endl;
+			std::cout << "   cgi sent EOF" << std::endl;
 			response.cgi.done_reading_from_cgi();
 		}
 		if (received > 0 && !response.cgi.header_extracted)
@@ -395,7 +377,7 @@ void	Connection::respond(void)
 			std::string chunk_size = (std::ostringstream{} << std::hex << received << "\r\n").str();
 			buffer.insert(buffer.end(), chunk_size.begin(), chunk_size.end());
 			buffer.insert(buffer.end(), buf.begin(), buf.begin() + received);
-			static const std::string chunk_end = "\r\n\r\n";
+			static const std::string chunk_end = "\r\n";
 			buffer.insert(buffer.end(), chunk_end.begin(), chunk_end.end());
 			if (!received)
 				response.cgi.done_reading_from_cgi();
@@ -408,7 +390,7 @@ void	Connection::respond(void)
 	else if (response.ifs_body && !response.ifs_body->eof() && buffer.size() < BUFFER_SIZE)
 	{
 		const size_t capacity = BUFFER_SIZE - buffer.size();
-		std::array<char, BUFFER_SIZE> buf;
+		static std::array<char, BUFFER_SIZE> buf;
 		response.ifs_body->read(buf.data(), capacity);
 		buffer.insert(buffer.end(), buf.begin(), buf.begin() + response.ifs_body->gcount());
 	}
@@ -462,9 +444,7 @@ void	Connection::respond(void)
 
 void	Connection::handle_exception(const std::exception& e)
 {
-	std::cerr << "\n\n\n\n\n" << std::endl;
 	std::cerr << e.what() << std::endl;
-	std::cerr << "\n\n\n\n\n" << std::endl;
 	if (exception)
 	{
 		close = true;
@@ -476,6 +456,36 @@ void	Connection::handle_exception(const std::exception& e)
 	events = POLLOUT;
 	status_code = 500;
 	response.status_text = "Internal Server Error";
+	response.generate_error_page(status_code);
+	response.connection = "close";
+	response.create_header(status_code);
+}
+
+void	Connection::handle_timeout(void)
+{
+	std::cerr << "timeout" << std::endl;
+	if (status_code == 408 || status_code == 504)
+	{
+		close = true;
+		return ;
+	}
+
+	shutdown(fd, SHUT_RD);
+	response.cgi.fail = true;
+	if (events == POLLOUT)
+		status_code = 504; // Gateway Timeout
+	else if (!request.header_received)
+	{
+		close = true;
+		return ;
+	}
+	else
+	{
+		status_code = 408; // Request Timeout
+		response.connection = "close";
+	}
+	events = POLLOUT;
+	response.set_status_text(status_code);
 	response.generate_error_page(status_code);
 	response.create_header(status_code);
 }

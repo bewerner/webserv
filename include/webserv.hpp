@@ -27,6 +27,7 @@
 
 #include <sys/socket.h>
 #include <sys/errno.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <poll.h>
@@ -37,7 +38,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
-
+#include <netinet/tcp.h>
+#include <string.h>
 
 // typedef std::chrono::steady_clock::time_point time_point;
 // #define BUFFER_SIZE (size_t)1024*16
@@ -95,7 +97,7 @@ struct CGI
 	void	init_pipes(void);
 	void	fork(void);
 	void	setup_io(void);
-	void	exec(const Server& server, const Request& request, const Response& response);
+	void	exec(const Server& server, const Request& request, const Response& response, const Connection& connection);
 	void	done_writing_into_cgi(void);
 	void	done_reading_from_cgi(void);
 	bool	pollin(void) const;
@@ -134,15 +136,15 @@ struct Response
 
 	void	set_location_config(const std::string& request_target);
 	void	set_response_target(std::string request_target, int& status_code, std::string method);
-	void	init_body(int& status_code, const Request& request, const Response& response, const Server& server);
-	void	init_error_body(int& status_code, const Request& request, const Server& server);
+	void	init_body(int& status_code, const Request& request, const Response& response, const Server& server, const Connection& connection);
+	void	init_error_body(int& status_code, const Request& request, const Server& server, const Connection& connection);
 	void	create_header(const int status_code);
 	void	generate_directory_listing(const Request& request);
 	void	generate_error_page(const int status_code);
 	void	set_status_text(const int status_code);
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
-	void	init_cgi(int& status_code, const Server& server, const Request& request, const Response& response);
+	void	init_cgi(int& status_code, const Server& server, const Request& request, const Response& response, const Connection& connection);
 	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code);
 };
 
@@ -155,6 +157,7 @@ struct Connection
 	bool				close = false;
 	int					status_code = 0;
 	bool				exception = false;
+	sockaddr_in			sockaddr;
 
 	Request				request;
 	Response			response;
@@ -181,6 +184,7 @@ struct Connection
 	void	receive_body(void);
 	void	init_response(void);
 	void	handle_exception(const std::exception& e);
+	void	handle_timeout(void);
 
 	void	validate_method(void);
 	void	delete_response_target(void);
@@ -223,8 +227,8 @@ struct Server
 	std::list<Connection>							connections;
 	int												socket = -1;
 	sockaddr_in										sockaddr;
-	std::chrono::seconds							request_timeout = std::chrono::seconds(35);
-	std::chrono::seconds							response_timeout = std::chrono::seconds(35);
+	std::chrono::seconds							request_timeout = std::chrono::seconds(15);
+	std::chrono::seconds							response_timeout = std::chrono::seconds(15);
 
 	short*											revents;
 

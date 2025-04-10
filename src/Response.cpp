@@ -103,16 +103,16 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		response_target = config->root + request_target;
 }
 
-void	Response::init_cgi(int& status_code, const Server& server, const Request& request, const Response& response)
+void	Response::init_cgi(int& status_code, const Server& server, const Request& request, const Response& response, const Connection& connection)
 {
 	(void)status_code;
 	cgi.init_pipes();
 	cgi.fork();
 	cgi.setup_io();
-	cgi.exec(server, request, response);
+	cgi.exec(server, request, response, connection);
 }
 
-void	Response::init_body(int& status_code, const Request& request, const Response& response, const Server& server)
+void	Response::init_body(int& status_code, const Request& request, const Response& response, const Server& server, const Connection& connection)
 {
 	bool directory_request = (response_target.back() == '/');
 
@@ -158,7 +158,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	if (location_config->cgi)
 	{
 	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
-		init_cgi(status_code, server, request, response);
+		init_cgi(status_code, server, request, response, connection);
 		if (cgi.fail)
 		{
 			status_code = 500;
@@ -175,7 +175,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	}
 }
 
-void	Response::init_error_body(int& status_code, const Request& request, const Server& server)
+void	Response::init_error_body(int& status_code, const Request& request, const Server& server, const Connection& connection)
 {
 	if (server_config->error_page.find(status_code) != server_config->error_page.end())
 	{
@@ -184,7 +184,7 @@ void	Response::init_error_body(int& status_code, const Request& request, const S
 		{
 			set_location_config(response_target);
 			set_response_target(response_target, status_code, "GET");
-			init_body(status_code, request, *this, server);
+			init_body(status_code, request, *this, server, connection);
 		}
 		else
 		{
@@ -398,7 +398,7 @@ void	Response::set_status_text(const int status_code)
 		{402, "Payment Required"},
 		{403, "Forbidden"},
 		{404, "Not Found"},
-		{405, "Method Not Allowed"},
+		{405, "Not Allowed"},
 		{406, "Not Acceptable"},
 		{407, "Proxy Authentication Required"},
 		{408, "Request Timeout"},

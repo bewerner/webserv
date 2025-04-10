@@ -10,9 +10,13 @@ void	Server::clean_connections(void)
 	auto now = std::chrono::steady_clock::now();
 	for (auto it = connections.begin(); it != connections.end();)
 	{
-		if ((*it).close || (*it).timeout <= now)
+		if (it->close)
 			it = connections.erase(it);
 		else
+		{
+			if (it->timeout <= now)
+				it->handle_timeout();
 			it++;
+		}
 	}
 }

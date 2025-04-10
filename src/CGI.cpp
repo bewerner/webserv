@@ -52,7 +52,7 @@ void	CGI::setup_io(void)
 	}
 }
 
-void	CGI::exec(const Server& server, const Request& request, const Response& response)
+void	CGI::exec(const Server& server, const Request& request, const Response& response, const Connection& connection)
 {
 	if (fail || pid != 0)
 		return ;
@@ -94,7 +94,7 @@ void	CGI::exec(const Server& server, const Request& request, const Response& res
 	env_str.emplace_back("SCRIPT_FILENAME=" + target);
 	env_str.emplace_back("REQUEST_URI=" + request.URI);
 	env_str.emplace_back("SCRIPT_NAME=" + relative_target);
-	env_str.emplace_back("REMOTE_PORT=" + std::to_string(ntohs(server.sockaddr.sin_port)));
+	env_str.emplace_back("REMOTE_PORT=" + std::to_string(ntohs(connection.sockaddr.sin_port)));
 	env_str.emplace_back("PATH=" + env_path);
 	env_str.emplace_back("CONTEXT_PREFIX=" + response.location_config->path);
 	env_str.emplace_back("PWD=" + pwd);
