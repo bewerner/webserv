@@ -468,7 +468,6 @@ void	Connection::handle_exception(const std::exception& e)
 		status_code = 500;
 	response.set_status_text(status_code);
 	response.generate_error_page(status_code);
-	response.connection = "close";
 	response.create_header(status_code);
 }
 
