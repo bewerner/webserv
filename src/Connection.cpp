@@ -172,7 +172,8 @@ void	Connection::init_response(void)
 	if (status_code < 300)
 		response.set_location_config(request.request_target);
 
-	validate_method();
+	if (status_code < 300)
+		validate_method();
 	if (status_code < 300)
 		response.set_response_target(request.request_target, status_code, request.method);
 	if (status_code < 300 && request.method == "DELETE")
@@ -287,7 +288,7 @@ void	Connection::receive(void)
 	if (!request.header_received)
 	{
 		receive_header();
-		if (request.header_received)
+		if (request.header_received || request.received)
 			init_response();
 	}
 
