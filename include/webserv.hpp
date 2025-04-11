@@ -144,7 +144,7 @@ struct Response
 	void	set_status_text(const int status_code);
 	void	set_content_type(void);
 	void	extract_path_info(std::string& request_target);
-	void	init_cgi(int& status_code, const Server& server, const Request& request, const Response& response, const Connection& connection);
+	void	init_cgi(const Server& server, const Request& request, const Response& response, const Connection& connection);
 	void	extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& size, int& status_code);
 };
 

@@ -33,4 +33,4 @@ close $out;
 
 # Output link
 print "<p>File uploaded successfully.</p>";
-print qq{<p><a href="/uploads/">Uploads</a></p>};
+print qq{<p><a href="/uploads/">Uploaded files</a></p>};

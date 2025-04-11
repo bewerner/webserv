@@ -58,7 +58,7 @@ make
 ./webserv [configuration_file]
 ```
 
-If no configuration file is provided, the server will use `webserver.conf`
+If no configuration file is provided, the server will use `default.conf`
 
 ## Testing
 

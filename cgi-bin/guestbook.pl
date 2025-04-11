@@ -103,7 +103,7 @@ for ($i=0;$i<=$SIZE;$i++) {
          $FORM{'comments'} =~ s/\cM\n/<br>\n/g;
       }
 
-      print GUEST "<b>$FORM{'comments'}</b><br>\n";
+      print GUEST "<b class=\"comment\">$FORM{'comments'}</b>\n";
 
       if ($FORM{'url'}) {
          print GUEST "<a href=\"$FORM{'url'}\">$FORM{'realname'}</a>";
@@ -137,7 +137,7 @@ for ($i=0;$i<=$SIZE;$i++) {
       }
 
       if ($separator eq '1') {
-         print GUEST " - $date<hr>\n\n";
+         print GUEST "<br>$date<hr>\n\n";
       }
       else {
          print GUEST " - $date<p>\n\n";

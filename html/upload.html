@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload File</title>
+<style>
+	body {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		min-height: 100vh;
+		margin: 0;
+		text-align: center;
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		background-color: #232323;
+		padding: 20px;
+		box-sizing: border-box;
+	}
+	.container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 20px;
+		background: #2f2f2f;
+		padding: 40px 30px;
+		border-radius: 16px;
+		box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+		min-width: max-content;
+	}
+	.title {
+		font-size: 36px;
+		font-weight: bold;
+		color: #e4e4e4;
+	}
+	.upload-box {
+		border: 2px dashed #1e8824;
+		border-radius: 12px;
+		padding: 40px 20px;
+		width: 100%;
+		max-width: 100%;
+		color: #e4e4e4;
+		cursor: pointer;
+		transition: background 0.2s ease-in-out;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		min-height: 120px;
+		box-sizing: border-box;
+		margin-top: 10px;
+	}
+	#uploadForm {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		gap: 20px;
+	}
+	#fileName {
+		color: green !important;
+	}
+	.upload-box.dragover {
+		background-color: #1e882426;
+	}
+	.hidden-input {
+		display: none;
+	}
+	.button {
+		text-decoration: none;
+		display: inline-block;
+		padding: 12px 28px;
+		font-size: 16px;
+		font-weight: 500;
+		border: none;
+		border-radius: 80px;
+		background-image: linear-gradient(to right, #065e14, #267536, #1e8824, #1a6f20);
+		background-size: 300% 150%;
+		color: #e4e4e4;
+		cursor: pointer;
+		box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+		transition: all .4s ease-in-out;
+	}
+	.button:hover {
+		background-position: 100% 0;
+	}
+</style>
+</head>
+<body>
+<div class="container">
+	<div class="title">Upload File</div>
+	<form id="uploadForm" action="/cgi-bin/upload.pl" method="post" enctype="multipart/form-data" style="width: 100%;">
+	<label for="fileInput" class="upload-box" id="dropZone">
+		Drop your file here or click to select
+		<input type="file" name="file" id="fileInput" class="hidden-input">
+	</label>
+	<div id="fileName" style="color: #aaa; font-size: 14px;"></div>
+	<div style="margin-top: 20px;">
+		<button type="submit" class="button">Upload</button>
+	</div>
+	</form>
+</div>
+
+<script>
+	const dropZone = document.getElementById('dropZone');
+	const fileInput = document.getElementById('fileInput');
+	const fileNameDisplay = document.getElementById('fileName');
+
+	function updateFileNameDisplay(file) {
+		fileNameDisplay.textContent = file ? `Selected file: ${file.name}` : '';
+	}
+
+	dropZone.addEventListener('click', () => fileInput.click());
+
+	fileInput.addEventListener('change', () => {
+		if (fileInput.files.length > 0) {
+			updateFileNameDisplay(fileInput.files[0]);
+		}
+	});
+
+	dropZone.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		dropZone.classList.add('dragover');
+	});
+
+	dropZone.addEventListener('dragleave', () => {
+		dropZone.classList.remove('dragover');
+	});
+
+	dropZone.addEventListener('drop', (e) => {
+		e.preventDefault();
+		dropZone.classList.remove('dragover');
+
+		if (e.dataTransfer.files.length) {
+			fileInput.files = e.dataTransfer.files;
+			updateFileNameDisplay(e.dataTransfer.files[0]);
+		}
+	});
+</script>
+
+</body>
+</html>

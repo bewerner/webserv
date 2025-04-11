@@ -1,55 +1,110 @@
-<html>
-  <head>
-    <title>Guestbook</title>
-  </head>
-  <body>
-    <center>
-      <h1>Guestbook</h1>
-    </center>
-    Thank you for visiting our pages.  We would love it if you would 
-    <a href="addguest.html">Add</a> to this guestbook we are keeping!
-    <hr>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Guestbook</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #232323;
+      color: #e4e4e4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      background-color: #2f2f2f;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+      width: max-content;
+      max-width: 80%;
+      min-width: 500px;
+    }
+    .comment {
+      margin: 30px;
+      display: block;
+      word-wrap: break-word;
+    }
+
+    h1 {
+      font-size: 36px;
+      text-align: center;
+      color: #ffffff;
+      margin-top: 0;
+    }
+
+    a {
+      color: #4ade80;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .entry {
+      border-top: 1px solid #3a3a3a;
+      padding: 20px 0;
+    }
+
+    .entry:first-of-type {
+      border-top: none;
+    }
+
+    .entry b {
+      font-size: 18px;
+      color: #e4e4e4;
+    }
+
+    .meta {
+      font-size: 14px;
+      color: #bbbbbb;
+      margin-top: 4px;
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #aaa;
+    }
+
+    .footer ul {
+      padding-left: 20px;
+    }
+
+    .footer li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Guestbook</h1>
+    <p>Thank you for visiting our pages. We would love it if you would <a href="addguest.html">Add</a> to this guestbook we are keeping!</p><hr>
+
 <!--begin-->
-<b>a</b><br>
-a<br>
- USA - Tuesday, April 01, 2025 at 00:39:30 (CEST)<hr>
+<b class="comment">Hi, it's Bob!</b>
+Bob &lt;<a href="mailto:bob@example.com">bob@example.com</a>&gt;<br>
+Heilbronn, Germany<br>Saturday, April 12, 2025 at 01:07:56 (CEST)<hr>
 
-<b>awegawegwg</b><br>
-asfawegawega<br>
- USA - Tuesday, April 01, 2025 at 00:39:08 (CEST)<hr>
+<b class="comment">I like turtles.</b>
+Tom &lt;<a href="mailto:tom@example.com">tom@example.com</a>&gt;<br>
+Berlin, Germany<br>Saturday, April 12, 2025 at 01:06:52 (CEST)<hr>
 
-<b>x</b><br>
-<a href="xxxxxx">x</a> &lt;<a href="mailto:xx">xx</a>&gt;<br>
-xxx, xxx USA - Tuesday, April 01, 2025 at 00:33:19 (CEST)<hr>
 
-<b>asdf</b><br>
-<a href="asdf">asdf</a> &lt;<a href="mailto:asdf">asdf</a>&gt;<br>
-asdf, asdf USA - Saturday, March 29, 2025 at 03:41:36 (CET)<hr>
 
-<b>ab</b><br>
-ab &lt;<a href="mailto:ab">ab</a>&gt;<br>
- USA - Saturday, March 29, 2025 at 03:36:03 (CET)<hr>
 
-<b>ab</b><br>
-ab &lt;<a href="mailto:ab">ab</a>&gt;<br>
- USA - Saturday, March 29, 2025 at 03:35:39 (CET)<hr>
-
-<b>a</b><br>
-a &lt;<a href="mailto:a">a</a>&gt;<br>
- USA - Saturday, March 29, 2025 at 03:32:20 (CET)<hr>
-
-<b>heeeelo</b><br>
-<a href="dfgh">asdf</a> &lt;<a href="mailto:1234">1234</a>&gt;<br>
-345hrdb, wewe USA - Saturday, March 29, 2025 at 03:31:45 (CET)<hr>
-
-<b>hello world</b><br>
-<a href="c">a</a> &lt;<a href="mailto:b">b</a>&gt;<br>
-d, e USA - Thursday, March 20, 2025 at 20:21:08 (CET)<hr>
-
-    <hr>
-    <ul>
-    <li><a href="../">Back to My Home Page</a><br>
-    <li>Scripts and Guestbook created by Matt Wright and can be found at <a href="http://www.scriptarchive.com/">Matt's Script Archive</a>
-    </ul>
-  </body>
+    <div class="footer">
+      <ul>
+        <li><a href="../">Back to My Home Page</a></li>
+        <li>Scripts and Guestbook created by Matt Wright and can be found at <a href="http://www.scriptarchive.com/">Matt's Script Archive</a></li>
+      </ul>
+    </div>
+  </div>
+</body>
 </html>

@@ -28,7 +28,6 @@ void Response::extract_path_info(std::string& request_target)
 	{
 		request_target.append(match[1]);
 		path_info = match[2];
-		std::cout << "cgi target: >" << request_target << "<   path_info: >" << path_info << "<" << std::endl;
 		if (!std::filesystem::exists(location_config->root + request_target) || !std::filesystem::is_directory(location_config->root + request_target))
 			break ;
 	}
@@ -63,12 +62,8 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		directory_request = (request_target.back() == '/');
 		absolute_index    = (config->index.front() == '/');
 		directory_index   = (config->index.back()  == '/');
-		// if (directory_request)
-		// 	request_target.clear();
-		std::cout << "tmp -> " << config->root << " " << request_target << std::endl;
 	}
 
-	// if (config.cgi)
 	if (location_config->cgi)
 		extract_path_info(request_target);
 
@@ -77,35 +72,25 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		if (absolute_index) // request target is irrelevant -> search for root+index
 		{
 			response_target = config->index;
-			// sleep(1); std::cout << response_target << std::endl; sleep (1);
 			set_location_config(response_target);
 			config = location_config;
 			if (!config->alias.empty())
 				response_target.erase(0, config->path.size());
-			// sleep(1); std::cout << response_target << std::endl; sleep (1);
 			response_target = config->root + response_target;
-			// sleep(1); std::cout << response_target << std::endl; sleep (1);
-			// if (!std::filesystem::exists(response_target))
-			// 	response_target = config->root;
 		}
 		else // index is relative file_index (for example index.html)
 		{
 			response_target = config->root + request_target + config->index;
 			if (!std::filesystem::exists(response_target))
 				response_target = config->root + request_target;
-			// else if (std::filesystem::is_directory(response_target))
-			// {
-
-			// }
 		}
 	}
 	else
 		response_target = config->root + request_target;
 }
 
-void	Response::init_cgi(int& status_code, const Server& server, const Request& request, const Response& response, const Connection& connection)
+void	Response::init_cgi(const Server& server, const Request& request, const Response& response, const Connection& connection)
 {
-	(void)status_code;
 	cgi.init_pipes();
 	cgi.fork();
 	cgi.setup_io();
@@ -119,10 +104,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	if (directory_request)
 	{
 		if (!std::filesystem::exists(response_target) || !std::filesystem::is_directory(response_target))
-		{
-			std::cout << "-------------------------------------++++ " << response_target << std::endl;
 			status_code = 404;
-		}
 		else if (location_config->autoindex)
 			generate_directory_listing(request);
 		else
@@ -132,46 +114,43 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 
 	if (std::filesystem::is_directory(response_target))
 	{
-		std::cout << "----------------------------------------------------XXXXXXX " << response_target << std::endl;
 		status_code = 301;
-		// location = response_target.substr(location_config->root.size()); // response target without root
 		location = request.request_target;
 		if (location.back() == '/')
 			location.append(location_config->index);
 		location = "http://" + request.host + ':' + std::to_string(server.port) + location + '/';
-		// location = "http://" + request.host + ':' + std::to_string(server.port) + request.request_target + '/';
 		
 		normalize_path(location);
-		std::cout << "----------------------------------------------------location " << location << std::endl;
 		return ;
 	}
 
 	if (!std::filesystem::exists(response_target))
 	{
-		std::cout << "-------------------------------------++x++ " << response_target << std::endl;
 		status_code = 404;
 		return ;
 	}
-
-	// if (location_config->cgi)
-	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
 	if (location_config->cgi)
 	{
-	std::cout << "----------------------------------------------------------------------------------------------------" << request.request_target << std::endl;
-		init_cgi(status_code, server, request, response, connection);
+		init_cgi(server, request, response, connection);
 		if (cgi.fail)
 		{
 			status_code = 500;
 			cgi = CGI();
 		}
+		else
+			transfer_encoding = "chunked";
 		return;
 	}
-
 	ifs_body = std::make_shared<std::ifstream>(response_target, std::ios::binary);
 	if (!ifs_body->is_open())
 	{
 		status_code = 403;
 		ifs_body.reset();
+	}
+	else
+	{
+		content_length = std::to_string(std::filesystem::file_size(response_target));
+		transfer_encoding.clear();
 	}
 }
 
@@ -192,7 +171,6 @@ void	Response::init_error_body(int& status_code, const Request& request, const S
 			location = response_target;
 		}
 	}
-
 	if (str_body.empty() && !ifs_body)
 	{
 		set_status_text(status_code);
@@ -234,6 +212,11 @@ void	Response::create_header(const int status_code)
 
 	header = oss.str();
 	header_sent = false;
+
+	// debug
+	std::cout	<< "--------------------RESPONSE-HEADER--------------------\n"
+				<< header
+				<< "------------------------------------------------------\n\n\n" << std::endl;
 }
 
 static std::string format_date_time(const std::filesystem::file_time_type& ftime)
@@ -279,10 +262,10 @@ void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& s
 		cgi.header_extracted = true;
 		std::string body = match[3];
 		cgi.header = match[1];
-		// debug
-		std::cout	<< "--------------------cgiRESPONSE-HEADER--------------------\n"
-					<< cgi.header
-					<< "------------------------------------------------------\n\n\n" << std::endl;
+		// // debug
+		// std::cout	<< "--------------------cgiRESPONSE-HEADER--------------------\n"
+		// 			<< cgi.header
+		// 			<< "------------------------------------------------------\n\n\n" << std::endl;
 
 		for (size_t i = 0; i < body.length(); i++)
 			buf[i] = body[i];
@@ -290,24 +273,12 @@ void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& s
 
 		//validate cgi header
 		if (!std::regex_match(cgi.header, std::regex(R"((\s*?\S+:.*\r?\n)+|\s*)", std::regex_constants::icase)))
-		{
-			throw std::runtime_error("   wrong cgi header format -> 500");
-		}
+			throw std::runtime_error("   wrong cgi header format");
 		//parse cgi header
 		if (std::regex_search(cgi.header, match, std::regex(R"(^\s*Content-Type:.*?(\S+.*))", std::regex_constants::icase)))
-		{
 			content_type = match[1];
-			std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx found content type: " << content_type << std::endl;
-		}
 
-		//update response header
 		create_header(status_code);
-		// debug
-		std::cout	<< "--------------------RESPONSE-HEADERx--------------------\n"
-					<< header
-					<< "------------------------------------------------------\n\n\n" << std::endl;
-		// if (cgi.fail)
-		// 	exit(0);
 	}
 	else
 		size = 0;
@@ -315,8 +286,6 @@ void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& s
 
 void	Response::generate_directory_listing(const Request& request)
 {
-	std::cout << "generating directory listing" << std::endl;
-
 	std::map<std::string, std::filesystem::directory_entry> directories;
 	std::map<std::string, std::filesystem::directory_entry> non_directories;
 	
@@ -349,8 +318,6 @@ void	Response::generate_directory_listing(const Request& request)
 
 void	Response::generate_error_page(const int status_code)
 {
-	std::cout << "generating error page" << std::endl;
-
 	str_body = "<html>\r\n<meta charset=\"UTF-8\"><!--🐢-->\r\n<head><title>" + std::to_string(status_code) + " " + status_text + "</title></head>\r\n<body>\r\n<center><h1>" + std::to_string(status_code) + " " + status_text + "</h1></center>\r\n<hr><center>🐢webserv🐢</center>\r\n</body>\r\n</html>\r\n";
 	std::ostringstream oss;
 	oss	<<	"<html>"																			<<	"\r\n"

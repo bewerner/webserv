@@ -1,48 +1,90 @@
 <!DOCTYPE html>
-<!-- saved from url=(0020)https://example.com/ -->
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>Example Domain</title>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Webserv</title>
+	<style>
+		body {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			min-height: 100vh;
+			margin: 0;
+			text-align: center;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background-color: #232323;
+		}
+		.container {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 30px;
+			background: #2f2f2f;
+			padding: 40px 60px;
+			border-radius: 16px;
+			box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+			margin: 8px;
+			width: max-content;
+			min-width: 375px;
+		}
+		.title {
+			font-size: 48px;
+			font-weight: bold;
+			color: #e4e4e4;
+		}
+		.message {
+			font-size: 24px;
+			color: #e4e4e4;
+		}
+		.flipped-emoji {
+			transform: scaleX(-1);
+			display: inline-block;
+		}
+		.button {
+			text-decoration: none;
+			display: block;
+			text-align: center;
+			padding: 12px 28px;
+			font-size: 16px;
+			font-weight: 500;
+			border: none;
+			border-radius: 80px;
+			background-image: linear-gradient(to right, #065e14, #267536, #1e8824, #1a6f20);
+			background-size: 300% 150%;
+			color: #e4e4e4;
+			cursor: pointer;
+			width: 70%;
 
-    
-    
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style type="text/css">
-    body {
-        background-color: #f0f0f2;
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-        
-    }
-    div {
-        width: 600px;
-        margin: 5em auto;
-        padding: 2em;
-        background-color: #fdfdff;
-        border-radius: 0.5em;
-        box-shadow: 2px 3px 7px 2px rgba(0,0,0,0.02);
-    }
-    a:link, a:visited {
-        color: #38488f;
-        text-decoration: none;
-    }
-    @media (max-width: 700px) {
-        div {
-            margin: 0 auto;
-            width: auto;
-        }
-    }
-    </style>    
+			box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+			moz-transition: all .4s ease-in-out;
+			-o-transition: all .4s ease-in-out;
+			-webkit-transition: all .4s ease-in-out;
+			transition: all .4s ease-in-out;
+		}
+		.button:hover {
+			background-position: 100% 0;
+			moz-transition: all .4s ease-in-out;
+			-o-transition: all .4s ease-in-out;
+			-webkit-transition: all .4s ease-in-out;
+			transition: all .4s ease-in-out;
+		}
+	</style>
 </head>
-
 <body>
-<div>
-    <h1>Example Domain (in root folder)</h1>
-    <p>This domain is for use in illustrative examples in documents. You may use this
-    domain in literature without prior coordination or asking for permission.</p>
-    <p><a href="image.png">View Image</a></p>
-    <p><a href="image.png" download="image.png">Download Image</a></p>
-</div>
-
-
-</body></html>
+	<div class="container">
+		<div class="title"><span class="flipped-emoji">🐢</span> WEBSERV 🐢</div>
+		<a href="/list" class="button">Directory Listing</a>
+		<a href="/uploads" class="button">Uploaded Files</a>
+	</div>
+	<div class="container">
+		<div class="title">CGI</div>
+		<a href="/guestbook" class="button">Guestbook</a>
+		<a href="/upload" class="button">Upload Files</a>
+		<a href="/cgi-bin/cgi_info.sh" class="button">Environment Variables</a>
+		<a href="/cgi-bin/loop.sh" class="button">Infinite Loop</a>
+		<a href="/cgi-bin/invalid_cgi_header.sh" class="button">Invalid CGI Header</a>
+	</div>
+</body>
+</html>

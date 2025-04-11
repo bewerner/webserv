@@ -54,7 +54,7 @@ int	poll_servers(std::vector<Server>& servers)
 				{
 					// if (cgi.is_running())
 					// {
-						std::cout << "pidpoll1" << std::endl;
+						// std::cout << "pidpoll1" << std::endl;
 						fds.emplace_back(pollfd{.fd = cgi.pipe_into_cgi[1], .events = POLLOUT, .revents = 0});
 						cgi.revents_write_into_cgi = &fds.back().revents;
 					// }
@@ -63,7 +63,7 @@ int	poll_servers(std::vector<Server>& servers)
 				}
 				else if (cgi.pipe_from_cgi[0] >= 0)
 				{
-					std::cout << "pidpoll2" << std::endl;
+					// std::cout << "pidpoll2" << std::endl;
 					fds.emplace_back(pollfd{.fd = cgi.pipe_from_cgi[0], .events = POLLIN, .revents = 0});
 					cgi.revents_read_from_cgi = &fds.back().revents;
 				}
@@ -83,7 +83,7 @@ int	main(int argc, char** argv)
 
 	try 
 	{
-		parser(servers, argc > 1 ? argv[1] : "webserver.conf");
+		parser(servers, argc > 1 ? argv[1] : "default.conf");
 	}
 	catch (const std::exception& e) 
 	{
@@ -95,7 +95,8 @@ int	main(int argc, char** argv)
 
 	while (true)
 	{
-		std::cout << "poll: " << poll_servers(servers) << std::endl;
+		// std::cout << "poll: " << poll_servers(servers) << std::endl;
+		poll_servers(servers);
 		for (Server& server : servers)
 		{
 			for (Connection& connection : server.connections)
@@ -120,10 +121,10 @@ int	main(int argc, char** argv)
 			server.clean_connections(); //close marked connections and timed out connections
 		}
 
-		// debug
-		std::cout << "| ";
-		for (Server& server : servers)
-			std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
-		std::cout << std::endl;
+		// // debug
+		// std::cout << "| ";
+		// for (Server& server : servers)
+		// 	std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
+		// std::cout << std::endl;
 	}
 }
