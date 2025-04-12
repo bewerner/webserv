@@ -359,7 +359,7 @@ void	Connection::handle_exception(const std::exception& e)
 		exception = true;
 		response.cgi.fail = true;
 		events = POLLOUT;
-		if (auto* fs_error = dynamic_cast<const std::filesystem::filesystem_error*>(&e))
+		if (dynamic_cast<const std::filesystem::filesystem_error*>(&e))
 			status_code = 403;
 		else
 			status_code = 500;
