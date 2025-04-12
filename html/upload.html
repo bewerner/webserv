@@ -1,93 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upload File</title>
-<style>
-	body {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		min-height: 100vh;
-		margin: 0;
-		text-align: center;
-		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-		background-color: #232323;
-		padding: 20px;
-		box-sizing: border-box;
-	}
-	.container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 20px;
-		background: #2f2f2f;
-		padding: 40px 30px;
-		border-radius: 16px;
-		box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
-		min-width: max-content;
-	}
-	.title {
-		font-size: 36px;
-		font-weight: bold;
-		color: #e4e4e4;
-	}
-	.upload-box {
-		border: 2px dashed #1e8824;
-		border-radius: 12px;
-		padding: 40px 20px;
-		width: 100%;
-		max-width: 100%;
-		color: #e4e4e4;
-		cursor: pointer;
-		transition: background 0.2s ease-in-out;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		text-align: center;
-		min-height: 120px;
-		box-sizing: border-box;
-		margin-top: 10px;
-	}
-	#uploadForm {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		width: 100%;
-		gap: 20px;
-	}
-	#fileName {
-		color: green !important;
-	}
-	.upload-box.dragover {
-		background-color: #1e882426;
-	}
-	.hidden-input {
-		display: none;
-	}
-	.button {
-		text-decoration: none;
-		display: inline-block;
-		padding: 12px 28px;
-		font-size: 16px;
-		font-weight: 500;
-		border: none;
-		border-radius: 80px;
-		background-image: linear-gradient(to right, #065e14, #267536, #1e8824, #1a6f20);
-		background-size: 300% 150%;
-		color: #e4e4e4;
-		cursor: pointer;
-		box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
-		transition: all .4s ease-in-out;
-	}
-	.button:hover {
-		background-position: 100% 0;
-	}
-</style>
+	<meta charset="UTF-8" />
+	<title>Uploads</title>
+	<style>
+		body {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			min-height: 100vh;
+			margin: 0;
+			text-align: center;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background-color: #232323;
+		}
+		a {
+			text-decoration: none;
+		}
+		.container {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 30px;
+			background: #2f2f2f;
+			padding: 40px;
+			border-radius: 16px;
+			box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+			margin: 8px;
+			width: 600px;
+			transition: opacity 0.4s ease, transform 0.4s ease, height 0.4s ease, margin 0.4s ease, padding 0.4s ease;
+		}
+		.container.fade-out {
+			opacity: 0;
+			transform: scale(0.95);
+			height: 0;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+		}
+		.menu {
+			display: flex;
+			gap: 30px;
+			align-items: center;
+		}
+		.thumbnail {
+			max-height: 100px;
+			font-size: 24px;
+			font-weight: bold;
+			color: #e4e4e4;
+			overflow: auto;
+			max-width: 100%;
+		}
+		#file-list {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			font-size: 24px;
+			font-weight: bold;
+			color: #e4e4e4;
+		}
+		.button {
+			text-decoration: none;
+			display: block;
+			text-align: center;
+			padding: 12px 28px;
+			font-size: 16px;
+			font-weight: 500;
+			border: none;
+			border-radius: 80px;
+			background-image: linear-gradient(to right, #065e14, #267536, #1e8824, #1a6f20);
+			background-size: 300% 150%;
+			color: #e4e4e4;
+			cursor: pointer;
+			/* width: 70%; */
+
+			box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
+			moz-transition: all .4s ease-in-out;
+			-o-transition: all .4s ease-in-out;
+			-webkit-transition: all .4s ease-in-out;
+			transition: all .4s ease-in-out;
+		}
+		.button:hover {
+			background-position: 100% 0;
+			moz-transition: all .4s ease-in-out;
+			-o-transition: all .4s ease-in-out;
+			-webkit-transition: all .4s ease-in-out;
+			transition: all .4s ease-in-out;
+		}
+		.button.red {
+			background-image: linear-gradient(to right, #5e0606, #752626, #881e1e, #6f1a1a);
+		}
+		.button.yellow {
+			background-image: linear-gradient(to right, #5e5d06, #8f8528, #88781e, #6f621a);
+		}
+		.button.blue {
+			background-image: linear-gradient(to right, #062c5e, #264f75, #1e4a88, #1a3d6f);
+		}
+
+
+		.title {
+			font-size: 36px;
+			font-weight: bold;
+			color: #e4e4e4;
+		}
+		.upload-box {
+			border: 2px dashed #1e8824;
+			border-radius: 12px;
+			padding: 40px 20px;
+			width: 100%;
+			max-width: 100%;
+			color: #e4e4e4;
+			cursor: pointer;
+			transition: background 0.2s ease-in-out;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			min-height: 120px;
+			box-sizing: border-box;
+			margin-top: 10px;
+		}
+		#uploadForm {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			width: 100%;
+			gap: 20px;
+		}
+		#fileName {
+			color: green !important;
+		}
+		.upload-box.dragover {
+			background-color: #1e882426;
+		}
+		.hidden-input {
+			display: none;
+		}
+
+		#home {
+			margin: 50px;
+		}
+
+	</style>
 </head>
 <body>
+
+
+
 <div class="container">
 	<div class="title">Upload File</div>
 	<form id="uploadForm" action="/cgi-bin/upload.pl" method="post" enctype="multipart/form-data" style="width: 100%;">
@@ -106,6 +166,7 @@
 	const dropZone = document.getElementById('dropZone');
 	const fileInput = document.getElementById('fileInput');
 	const fileNameDisplay = document.getElementById('fileName');
+	const uploadForm = document.getElementById('uploadForm');
 
 	function updateFileNameDisplay(file) {
 		fileNameDisplay.textContent = file ? `Selected file: ${file.name}` : '';
@@ -137,7 +198,94 @@
 			updateFileNameDisplay(e.dataTransfer.files[0]);
 		}
 	});
+
+	uploadForm.addEventListener('submit', function(e) {
+		e.preventDefault(); // prevent normal form submission
+
+		const formData = new FormData(uploadForm);
+
+		fileNameDisplay.textContent = 'Uploading...';
+
+		fetch(uploadForm.action, {
+			method: 'POST',
+			body: formData
+		})
+		.then(response => response.text())
+		.then(text => {
+			fileNameDisplay.innerHTML = text;
+			loadFiles(); // refresh file list after upload
+		})
+		.catch(err => {
+			fileNameDisplay.innerHTML = '<span style="color:red;">Upload failed.</span>';
+			console.error('Upload error:', err);
+		});
+	});
 </script>
 
+
+
+	<div id="file-list"></div>
+
+	<a class="button" id="home" href="/">Home</a>
+
+
+	<script>
+		function loadFiles() {
+		fetch('/cgi-bin/list-files.sh')
+			.then(response => response.text())
+			.then(data => {
+			// const files = data.trim().split('\n');
+			const files = data.trim().split('\n').filter(f => f.trim() !== '');
+			const list = files.map(filename => `
+				<div class="container" data-filename="${filename}">
+					<a href="/uploads/${filename}" target="_blank">
+						<img class="thumbnail" src="/uploads/${filename}" alt="${filename}" />
+					</a>
+					<div class="menu">
+						<a class="button red" onclick="deleteFile('${filename}')">Delete</a>
+						<a class="button yellow" href="/uploads/${filename}" target="_blank">View</a>
+						<a class="button blue" href="/uploads/${filename}" download="${filename}">Download</a>
+					</div>
+				</div>
+			`).join('');
+			document.getElementById('file-list').innerHTML = list;
+			})
+			.catch(error => {
+			document.getElementById('file-list').textContent = 'Error loading file list.';
+			console.error('Error:', error);
+			});
+		}
+
+		function deleteFile(filename) {
+			const container = document.querySelector(`.container[data-filename="${CSS.escape(filename)}"]`);
+
+			if (container) {
+				container.classList.add('fade-out');
+
+				setTimeout(() => {
+					fetch(`/uploads/${encodeURIComponent(filename)}`, {
+						method: 'DELETE'
+					})
+					.then(response => {
+						if (response.ok) {
+							container.remove();
+						} else {
+							alert(`Failed to delete: ${filename}`);
+							container.classList.remove('fade-out');
+						}
+					})
+					.catch(err => {
+						alert('Error deleting file');
+						console.error(err);
+						container.classList.remove('fade-out');
+					});
+				}, 400);
+	}
+}
+
+
+
+		loadFiles(); // Initial load
+	</script>
 </body>
 </html>

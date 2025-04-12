@@ -276,10 +276,10 @@ void	Connection::respond(void)
 		if (!response.str_body.empty())
 			buffer.insert(buffer.end(), response.str_body.begin(), response.str_body.end());
 
-		// debug
-		std::cout	<< "--------------------SENDING-RESPONSE-HEADER--------------------\n"
-					<< response.header
-					<< "---------------------------------------------------------------\n\n\n" << std::endl;
+		// // debug
+		// std::cout	<< "--------------------SENDING-RESPONSE-HEADER--------------------\n"
+		// 			<< response.header
+		// 			<< "---------------------------------------------------------------\n\n\n" << std::endl;
 	}
 	bool using_cgi = (response.cgi.pid >= 0 && !response.cgi.fail);
 	if (using_cgi && response.cgi.pollin() && !response.cgi.eof)
