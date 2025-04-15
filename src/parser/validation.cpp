@@ -115,72 +115,6 @@ void validatePort(const std::vector<Server>& servers)
 	}
 }
 
-void validateRoot(const std::vector<Server>& servers)
-{
-	for (const auto& server : servers)
-	{
-		for (const auto& config : server.conf)
-		{
-			if (!config.root.empty())
-			{
-				try {
-					if (!std::filesystem::exists(config.root))
-					{
-						std::cerr << "Warning: Root directory does not exist: " 
-							<< config.root << " in server " << (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
-					}
-					else if (!std::filesystem::is_directory(config.root))
-					{
-						std::cerr << "Warning: Root is not a directory: " 
-							<< config.root << " in server " << (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
-					}
-				} catch (const std::exception& e) {
-					std::cerr << "Error checking root directory: " << e.what() << std::endl;
-				}
-			}
-			
-			for (const auto& loc : config.locations)
-			{
-				if (!loc.root.empty())
-				{
-					try {
-						if (!std::filesystem::exists(loc.root))
-						{
-							std::cerr << "Warning: Location root directory does not exist: " 
-								<< loc.root << " in location " << loc.path << std::endl;
-						}
-						else if (!std::filesystem::is_directory(loc.root))
-						{
-							std::cerr << "Warning: Location root is not a directory: " 
-								<< loc.root << " in location " << loc.path << std::endl;
-						}
-					} catch (const std::exception& e) {
-						std::cerr << "Error checking location root directory: " << e.what() << std::endl;
-					}
-				}
-				
-				if (!loc.alias.empty())
-				{
-					try {
-						if (!std::filesystem::exists(loc.alias))
-						{
-							std::cerr << "Warning: Location alias directory does not exist: " 
-								<< loc.alias << " in location " << loc.path << std::endl;
-						}
-						else if (!std::filesystem::is_directory(loc.alias))
-						{
-							std::cerr << "Warning: Location alias is not a directory: " 
-								<< loc.alias << " in location " << loc.path << std::endl;
-						}
-					} catch (const std::exception& e) {
-						std::cerr << "Error checking location alias directory: " << e.what() << std::endl;
-					}
-				}
-			}
-		}
-	}
-}
-
 void validateRootAlias(std::vector<Server>& servers)
 {
 	for (auto& server : servers)
@@ -260,117 +194,6 @@ void validateLocations(std::vector<Server>& servers)
 	}
 }
 
-void validateIndex(const std::vector<Server>& servers)
-{
-    for (const auto& server : servers)
-	{
-		for (const auto& config : server.conf)
-		{
-			if (!config.index.empty())
-			{
-				try {
-					std::string indexPath = config.root + "/" + config.index;
-					if (!std::filesystem::exists(indexPath))
-					{
-						std::cerr << "Warning: Index file does not exist: " 
-							<< indexPath << " in server " << (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
-					}
-				} catch (const std::exception& e) {
-					std::cerr << "Error checking index file: " << e.what() << std::endl;
-				}
-			}
-			
-			for (const auto& loc : config.locations)
-			{
-				if (!loc.index.empty() && !loc.root.empty())
-				{
-					try {
-						std::string indexPath = loc.root + "/" + loc.index;
-						if (!std::filesystem::exists(indexPath))
-						{
-							std::cerr << "Warning: Location index file does not exist: " 
-								<< indexPath << " in location " << loc.path << std::endl;
-						}
-					} catch (const std::exception& e) {
-						std::cerr << "Error checking location index file: " << e.what() << std::endl;
-					}
-				}
-				else if (!loc.index.empty() && !loc.alias.empty())
-				{
-					try {
-						std::string indexPath = loc.alias + "/" + loc.index;
-						if (!std::filesystem::exists(indexPath))
-						{
-							std::cerr << "Warning: Location index file with alias does not exist: " 
-								<< indexPath << " in location " << loc.path << std::endl;
-						}
-					} catch (const std::exception& e) {
-						std::cerr << "Error checking location index file with alias: " << e.what() << std::endl;
-					}
-				}
-			}
-		}
-	}
-}
-
-void validateUploadDir(const std::vector<Server>& servers)
-{
-	for (const auto& server : servers)
-	{
-		for (const auto& config : server.conf)
-		{
-			for (const auto& loc : config.locations)
-			{
-				if (!loc.client_body_temp_path.empty())
-				{
-					try {
-						if (!std::filesystem::exists(loc.client_body_temp_path))
-						{
-							std::cerr << "Warning: Upload directory does not exist: " 
-								<< loc.client_body_temp_path << " in location " << loc.path << std::endl;
-							
-							try {
-								if (std::filesystem::create_directories(loc.client_body_temp_path))
-								{
-									std::cout << "Created upload directory: " << loc.client_body_temp_path << std::endl;
-								}
-								else
-								{
-									std::cerr << "Failed to create upload directory: " << loc.client_body_temp_path << std::endl;
-								}
-							} catch (const std::exception& e) {
-								std::cerr << "Error creating upload directory: " << e.what() << std::endl;
-							}
-						}
-						else if (!std::filesystem::is_directory(loc.client_body_temp_path))
-						{
-							std::cerr << "Error: Upload path is not a directory: " 
-								<< loc.client_body_temp_path << " in location " << loc.path << std::endl;
-						}
-						else
-						{
-							std::string testFile = loc.client_body_temp_path + "/.webserv_write_test";
-							std::ofstream test(testFile);
-							if (!test.is_open())
-							{
-								std::cerr << "Warning: No write permission to upload directory: " 
-									<< loc.client_body_temp_path << " in location " << loc.path << std::endl;
-							}
-							else
-							{
-								test.close();
-								std::filesystem::remove(testFile);
-							}
-						}
-					} catch (const std::exception& e) {
-						std::cerr << "Error checking upload directory: " << e.what() << std::endl;
-					}
-				}
-			}
-		}
-	}
-}
-
 void validateDavMethods(std::vector<Server>& servers)
 {
 	for (const auto& server : servers)
@@ -441,18 +264,6 @@ void validateErrorPage(const std::vector<Server>& servers)
 						<< errorCode << " in server " 
 						<< (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
 				}
-				
-				try {
-					std::string errorPagePath = config.root + "/" + errorPage;
-					if (!std::filesystem::exists(errorPagePath))
-					{
-						std::cerr << "Warning: Error page file does not exist: " 
-							<< errorPagePath << " for error code " << errorCode 
-							<< " in server " << (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
-					}
-				} catch (const std::exception& e) {
-					std::cerr << "Error checking error page file: " << e.what() << std::endl;
-				}
 			}
 			
 			for (const auto& loc : config.locations)
@@ -462,61 +273,6 @@ void validateErrorPage(const std::vector<Server>& servers)
 					if (errorCode < 300 || errorCode > 599)
 					{
 						throw std::invalid_argument("Critical Error: Invalid HTTP error code: " + std::to_string(errorCode) + " in location " + loc.path + "  (value must be between 300 and 599)");
-					}
-					
-					try {
-						std::string basePath = !loc.root.empty() ? loc.root : 
-												(!loc.alias.empty() ? loc.alias : config.root);
-						std::string errorPagePath = basePath + "/" + errorPage;
-						if (!std::filesystem::exists(errorPagePath))
-						{
-							std::cerr << "Warning: Location error page file does not exist: " 
-								<< errorPagePath << " for error code " << errorCode 
-								<< " in location " << loc.path << std::endl;
-						}
-					} catch (const std::exception& e) {
-						std::cerr << "Error checking location error page file: " << e.what() << std::endl;
-					}
-				}
-			}
-		}
-	}
-}
-
-void validateAutoindex(const std::vector<Server>& servers)
-{
-	for (const auto& server : servers)
-	{
-		for (const auto& config : server.conf)
-		{
-			if (config.autoindex)
-			{
-				if (!std::filesystem::exists(config.root) || !std::filesystem::is_directory(config.root))
-				{
-					std::cerr << "Warning: Autoindex is enabled but root directory does not exist: " 
-						<< config.root << " in server " << (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
-				}
-			}
-			
-			for (const auto& loc : config.locations)
-			{
-				if (loc.autoindex)
-				{
-					if (!loc.root.empty())
-					{
-						if (!std::filesystem::exists(loc.root) || !std::filesystem::is_directory(loc.root))
-						{
-							std::cerr << "Warning: Autoindex is enabled but location root directory does not exist: " 
-								<< loc.root << " in location " << loc.path << std::endl;
-						}
-					}
-					else if (!loc.alias.empty())
-					{
-						if (!std::filesystem::exists(loc.alias) || !std::filesystem::is_directory(loc.alias))
-						{
-							std::cerr << "Warning: Autoindex is enabled but location alias directory does not exist: " 
-								<< loc.alias << " in location " << loc.path << std::endl;
-						}
 					}
 				}
 			}
@@ -536,13 +292,9 @@ void validateConfigurations(std::vector<Server>& servers)
 		validatePort(servers);
 		validateRootAlias(servers);
 		validateHost(servers);
-		validateRoot(servers);
-		validateIndex(servers);
-		validateUploadDir(servers);
 		validateDavMethods(servers);
 		validateClientMaxBodySize(servers);
 		validateErrorPage(servers);
-		validateAutoindex(servers);
 		validateLocations(servers);
 		
 		std::cout << "Configuration validation completed successfully." << std::endl;

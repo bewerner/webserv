@@ -198,7 +198,6 @@ struct LocationConfig
 	std::string										dav_methods;
 	bool											autoindex = false;
 	std::string										index;
-	std::string										client_body_temp_path;
 	bool											cgi = false;
 	size_t											client_max_body_size;
 	std::map<int, std::string>						error_page;
