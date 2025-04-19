@@ -162,6 +162,10 @@
 	</form>
 </div>
 
+<div id="file-list"></div>
+
+<a class="button" id="home" href="/">Home</a>
+
 <script>
 	const dropZone = document.getElementById('dropZone');
 	const fileInput = document.getElementById('fileInput');
@@ -220,16 +224,7 @@
 			console.error('Upload error:', err);
 		});
 	});
-</script>
 
-
-
-	<div id="file-list"></div>
-
-	<a class="button" id="home" href="/">Home</a>
-
-
-	<script>
 		function loadFiles() {
 		fetch('/cgi-bin/list-files.sh')
 			.then(response => response.text())
@@ -271,13 +266,13 @@
 							container.remove();
 						} else {
 							alert(`Failed to delete: ${filename}`);
-							container.classList.remove('fade-out');
+							loadFiles();
 						}
 					})
 					.catch(err => {
 						alert('Error deleting file');
 						console.error(err);
-						container.classList.remove('fade-out');
+						loadFiles();
 					});
 				}, 400);
 	}
