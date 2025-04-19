@@ -1,0 +1,5 @@
+localhost 8080
+
+GET / HTTP/1.1
+Host: s2
+

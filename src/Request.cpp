@@ -46,11 +46,7 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 	std::string	protocol;
 
 	istream >> method >> request_target >> protocol;
-	if (method != "GET" && method != "POST" && method != "DELETE")
-	{
-		status_code = 405;
-		return (false);
-	}
+
 	request.method = method;
 
 	request.URI = request_target;

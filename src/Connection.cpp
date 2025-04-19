@@ -107,7 +107,9 @@ void	Connection::receive_header(void)
 
 void	Connection::validate_method(void)
 {
-	if (request.method == "DELETE" && response.location_config->dav_methods != "DELETE")
+	if (request.method != "GET" && request.method != "POST" && request.method != "DELETE")
+		status_code = 405;
+	else if (request.method == "DELETE" && response.location_config->dav_methods != "DELETE")
 		status_code = 405;
 	else if (request.method == "POST" && response.location_config->cgi == false)
 	{
@@ -241,6 +243,11 @@ void	Connection::receive(void)
 		{
 			static std::array<char, BUFFER_SIZE> tmp;
 			ssize_t	bytes_received = recv(fd, tmp.data(), capacity, 0);							// try to receive as many bytes as fit in the buffer
+			if (bytes_received <= 0)
+			{
+				close = true;
+				return ;
+			}
 			if (bytes_received > 0)
 				buffer.insert(buffer.end(), tmp.begin(), tmp.begin() + bytes_received);			// append received bytes to buffer
 		}
@@ -326,9 +333,14 @@ void	Connection::respond(void)
 	if (using_cgi && !response.cgi.header_extracted)
 		return ;
 
-	if (pollout())
+	if (pollout() && !buffer.empty())
 	{
 		ssize_t sent = send(fd, buffer.data(), buffer.size(), 0);
+		if (sent <= 0)
+		{
+			close = true;
+			return ;
+		}
 		if (sent > 0)
 			buffer.erase(buffer.begin(), buffer.begin() + sent);
 	}
