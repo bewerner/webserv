@@ -142,8 +142,6 @@ void saveLocationConfig(LocationConfig& location, const std::string& line, const
 	}
 	else if (key == "index")
 		location.index = value;
-	else if (key == "upload_dir")
-		location.client_body_temp_path = value;
 	else if (key == "cgi")
 	{
 		if (value != "on" && value != "off")
