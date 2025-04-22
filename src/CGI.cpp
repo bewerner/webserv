@@ -162,7 +162,7 @@ void	CGI::done_reading_from_cgi(void)
 
 bool	CGI::pollin(void) const
 {
-	return (!fail && revents_read_from_cgi != nullptr && *revents_read_from_cgi & POLLIN);
+	return (!fail && revents_read_from_cgi != nullptr && (*revents_read_from_cgi & POLLIN || *revents_read_from_cgi & POLLHUP)); // include pollhup because unlike macOS, on linux pollin will not be triggered upon EOF
 }
 
 bool	CGI::pollout(void) const
