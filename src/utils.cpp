@@ -1,5 +1,15 @@
 #include "webserv.hpp"
 
+bool	has_trailing_slash(const std::string& str)
+{
+	return (!str.empty() && str.back() == '/');
+}
+
+bool	has_leading_slash(const std::string& str)
+{
+	return (!str.empty() && str.front() == '/');
+}
+
 void	normalize_path(std::string& path)
 {
 	size_t pos;

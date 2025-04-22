@@ -264,6 +264,8 @@ void			init_sockets(std::vector<Server>& servers);
 /************************************************/
 
 //utils.cpp
+bool	has_trailing_slash(const std::string& str);
+bool	has_leading_slash(const std::string& str);
 void	normalize_path(std::string& path);
 bool	collapse_absolute_path(std::string& path);
 

@@ -381,7 +381,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 				if (sepPos != std::string::npos)
 				{
 					std::string value = removeSpaces(configLine.substr(sepPos + 1));
-					if (value.back() == ';')
+					if (!value.empty() && value.back() == ';')
 						value.pop_back();
 					
 					std::string host = "0.0.0.0";
@@ -423,7 +423,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 				if (sepPos != std::string::npos)
 				{
 					std::string value = removeSpaces(configLine.substr(sepPos + 1));
-					if (value.back() == ';')
+					if (!value.empty() && value.back() == ';')
 						value.pop_back();
 					
 					std::istringstream nameStream(value);

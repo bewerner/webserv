@@ -45,9 +45,9 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		return ;
 	}
 
-	bool directory_request = (request_target.back() == '/');
-	bool absolute_index    = (config->index.front() == '/');
-	bool directory_index   = (config->index.back()  == '/');
+	bool directory_request = has_trailing_slash(request_target);
+	bool absolute_index    = has_leading_slash(config->index);
+	bool directory_index   = has_trailing_slash(config->index);
 
 	for (size_t i = 0; directory_request && absolute_index && directory_index; i++) // request target and root are irrelevant -> jump to location matching index with index as request target
 	{
@@ -59,9 +59,9 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		request_target = config->index;
 		set_location_config(request_target);
 		config = location_config;
-		directory_request = (request_target.back() == '/');
-		absolute_index    = (config->index.front() == '/');
-		directory_index   = (config->index.back()  == '/');
+		directory_request = has_trailing_slash(request_target);
+		absolute_index    = has_leading_slash(config->index);
+		directory_index   = has_trailing_slash(config->index);
 	}
 
 	if (location_config->cgi)
@@ -99,7 +99,7 @@ void	Response::init_cgi(const Server& server, const Request& request, const Resp
 
 void	Response::init_body(int& status_code, const Request& request, const Response& response, const Server& server, const Connection& connection)
 {
-	bool directory_request = (response_target.back() == '/');
+	bool directory_request = has_trailing_slash(response_target);
 
 	if (directory_request)
 	{
@@ -116,7 +116,7 @@ void	Response::init_body(int& status_code, const Request& request, const Respons
 	{
 		status_code = 301;
 		location = request.request_target;
-		if (location.back() == '/')
+		if (has_trailing_slash(location))
 			location.append(location_config->index);
 		location = "http://" + request.host + ':' + std::to_string(server.port) + location + '/';
 		
