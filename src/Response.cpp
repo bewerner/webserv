@@ -59,6 +59,8 @@ void	Response::set_response_target(std::string request_target, int& status_code,
 		request_target = config->index;
 		set_location_config(request_target);
 		config = location_config;
+		if (!config->alias.empty())
+			request_target.erase(0, config->path.size());
 		directory_request = has_trailing_slash(request_target);
 		absolute_index    = has_leading_slash(config->index);
 		directory_index   = has_trailing_slash(config->index);
@@ -262,10 +264,6 @@ void	Response::extract_cgi_header(std::array<char, BUFFER_SIZE>& buf, ssize_t& s
 		cgi.header_extracted = true;
 		std::string body = match[3];
 		cgi.header = match[1];
-		// // debug
-		// std::cout	<< "--------------------cgiRESPONSE-HEADER--------------------\n"
-		// 			<< cgi.header
-		// 			<< "------------------------------------------------------\n\n\n" << std::endl;
 
 		for (size_t i = 0; i < body.length(); i++)
 			buf[i] = body[i];

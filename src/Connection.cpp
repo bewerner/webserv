@@ -2,7 +2,6 @@
 
 Connection::Connection(Server* server) : server(server)
 {
-	// std::cout  << "<- accept connection ->" << std::endl;
 	socklen_t addrlen = sizeof(sockaddr);
 	fd = accept(server->socket, (struct sockaddr*)&sockaddr, &addrlen);
 	int flag = 1;
@@ -17,22 +16,8 @@ Connection::Connection(Server* server) : server(server)
 
 Connection::~Connection(void)
 {
-	// std::cout << "X  close connection with fd " << fd << std::endl;
-	// if (fd >= 0)
-	// 	::close(fd);
 	if (fd >= 0)
-	{
-		// std::cout << "depleting" << std::endl;
-		// static std::array<char, BUFFER_SIZE> tmp;
-		// for (size_t i = 0; i < 9999999; i++)
-		// 	recv(fd, tmp.data(), BUFFER_SIZE, 0);
-		// std::cout << std::endl;
-		// std::cout << "depleted" << std::endl;
-
-		// sleep(5);
-		// sleep(1);
 		::close(fd);
-	}
 }
 
 static void	normalize_line_feed(std::vector<char>& buffer)
@@ -187,21 +172,6 @@ void	Connection::init_response(void)
 		response.status_text = "Moved Temporarily";
 	response.set_content_type();
 
-	// if (response.cgi.pid >= 0 && !response.cgi.fail)
-	// 	response.transfer_encoding = "chunked";
-	// else if (response.ifs_body)
-	// {
-	// 	response.content_length = std::to_string(std::filesystem::file_size(response.response_target));
-	// 	response.transfer_encoding.clear();
-	// }
-	// else if (status_code >= 300)
-	// {
-	// 	if (response.str_body.empty())
-	// 		response.generate_error_page(status_code);
-	// 	response.content_length = std::to_string(response.str_body.length());
-	// 	response.transfer_encoding.clear();
-	// }
-
 	response.create_header(status_code);
 }
 
@@ -282,11 +252,6 @@ void	Connection::respond(void)
 		response.header_sent = true;
 		if (!response.str_body.empty())
 			buffer.insert(buffer.end(), response.str_body.begin(), response.str_body.end());
-
-		// // debug
-		// std::cout	<< "--------------------SENDING-RESPONSE-HEADER--------------------\n"
-		// 			<< response.header
-		// 			<< "---------------------------------------------------------------\n\n\n" << std::endl;
 	}
 	bool using_cgi = (response.cgi.pid >= 0 && !response.cgi.fail);
 	if (using_cgi && response.cgi.pollin() && !response.cgi.eof)
@@ -377,7 +342,6 @@ void	Connection::handle_exception(const std::exception& e)
 			status_code = 500;
 		response.set_status_text(status_code);
 		response.init_error_body(status_code, request, *server, *this);
-		// response.generate_error_page(status_code);
 		response.create_header(status_code);
 	}
 	catch (const std::exception& e)
@@ -400,13 +364,6 @@ void	Connection::handle_timeout(void)
 		}
 		response.cgi.fail = true;
 
-		// std::cout << "depleting" << std::endl;
-		// static std::array<char, BUFFER_SIZE> tmp;
-		// for (size_t i = 0; i < 9999999; i++)
-		// 	recv(fd, tmp.data(), BUFFER_SIZE, 0);
-		// std::cout << std::endl;
-		// std::cout << "depleted" << std::endl;
-
 		if (events == POLLOUT)
 			status_code = 504; // Gateway Timeout
 		else if (!request.header_received)
@@ -422,7 +379,6 @@ void	Connection::handle_timeout(void)
 		events = POLLOUT;
 		response.set_status_text(status_code);
 		response.init_error_body(status_code, request, *server, *this);
-		// response.generate_error_page(status_code);
 		response.create_header(status_code);
 		response.connection = "close";
 	}

@@ -39,9 +39,7 @@ int	poll_servers(std::vector<Server>& servers)
 		for (Connection& connection : server.connections)
 		{
 			connection.revents = nullptr;
-			// if ((connection.buffer.empty() && connection.events == POLLIN) || connection.events == POLLOUT)
 			{
-				// std::cout << "x" << std::endl;
 				fds.emplace_back(pollfd{.fd = connection.fd, .events = connection.events, .revents = 0});
 				connection.revents = &fds.back().revents;
 			}
@@ -52,18 +50,11 @@ int	poll_servers(std::vector<Server>& servers)
 			{
 				if (cgi.pipe_into_cgi[1] >= 0)
 				{
-					// if (cgi.is_running())
-					// {
-						// std::cout << "pidpoll1" << std::endl;
-						fds.emplace_back(pollfd{.fd = cgi.pipe_into_cgi[1], .events = POLLOUT, .revents = 0});
-						cgi.revents_write_into_cgi = &fds.back().revents;
-					// }
-					// else
-					// 	cgi.fail = true;
+					fds.emplace_back(pollfd{.fd = cgi.pipe_into_cgi[1], .events = POLLOUT, .revents = 0});
+					cgi.revents_write_into_cgi = &fds.back().revents;
 				}
 				else if (cgi.pipe_from_cgi[0] >= 0)
 				{
-					// std::cout << "pidpoll2" << std::endl;
 					fds.emplace_back(pollfd{.fd = cgi.pipe_from_cgi[0], .events = POLLIN, .revents = 0});
 					cgi.revents_read_from_cgi = &fds.back().revents;
 				}
@@ -95,7 +86,6 @@ int	main(int argc, char** argv)
 
 	while (true)
 	{
-		// std::cout << "poll: " << poll_servers(servers) << std::endl;
 		poll_servers(servers);
 		for (Server& server : servers)
 		{
@@ -120,11 +110,5 @@ int	main(int argc, char** argv)
 				server.accept_connection();
 			server.clean_connections(); //close marked connections and timed out connections
 		}
-
-		// // debug
-		// std::cout << "| ";
-		// for (Server& server : servers)
-		// 	std::cout << inet_ntoa(server.host) << ':' << server.port << " has " << server.connections.size() << " connections | ";
-		// std::cout << std::endl;
 	}
 }

@@ -3,8 +3,9 @@ set +m
 
 SLEEP_TIME=1
 
-# Check if an argument (skip count) is provided
-SKIP_COUNT=${1:-0}  # Default to 0 if no argument is provided
+# Arguments
+SKIP_COUNT=${1:-0}       # Number of tests to skip
+TEST_LIMIT=${2:-0}       # Max number of tests to run (0 = unlimited)
 
 cd "$(dirname "$0")"
 TURTLE_DIR=$(pwd)
@@ -16,7 +17,8 @@ cd $TURTLE_DIR
 rm -rf */logs */response
 echo
 
-counter=0  # Initialize the counter
+counter=0  # Directory counter
+ran=0      # Test counter
 
 for DIR in $(ls -d */); do
 
@@ -25,6 +27,14 @@ for DIR in $(ls -d */); do
         ((counter++))
         continue
     fi
+
+    # Stop after running TEST_LIMIT tests (if specified)
+    if (( TEST_LIMIT > 0 && ran >= TEST_LIMIT )); then
+        break
+    fi
+
+    ((counter++))
+    ((ran++))
 
 	DIR=${DIR%/}
 	echo -n "$DIR:  "
@@ -35,7 +45,6 @@ for DIR in $(ls -d */); do
 		echo "❓  missing conf.conf or request.txt"
 		continue
 	fi
-
 
 	chmod +x $PWD/$DIR/prepare.sh > /dev/null 2>&1
 	chmod +x $PWD/$DIR/cleanup.sh > /dev/null 2>&1
@@ -79,9 +88,6 @@ for DIR in $(ls -d */); do
 	cd $TURTLE_DIR
 	(cd $PWD/$DIR && $PWD/cleanup.sh > /dev/null 2>&1)
 
-
-
-
 	# compare
 	grep -vE "^(Last-Modified: |ETag: |Accept-Ranges: )" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp" && mv "$DIR/response/nginx.txt.tmp" "$DIR/response/nginx.txt"
 	grep "" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp" && mv "$DIR/response/webserv.txt.tmp" "$DIR/response/webserv.txt"
@@ -89,14 +95,11 @@ for DIR in $(ls -d */); do
 	grep -vE "^(Server: |Date: |Content-Length: |<hr><center>nginx/[0-9].*?</center>)" "$DIR/response/nginx.txt" > "$DIR/response/nginx.txt.tmp"
 	grep -vE "^(Server: |Date: |Content-Length: |<meta charset=\"UTF-8\"><!--🐢-->|<hr><center>🐢webserv🐢</center>)" "$DIR/response/webserv.txt" > "$DIR/response/webserv.txt.tmp"
 
-
 	if cmp -s "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"; then
 		echo "✅  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
 	else
 		echo "❌  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
 	fi
-
-	# rm -f "$DIR/response/nginx.txt.tmp" "$DIR/response/webserv.txt.tmp"
 
 	SLEEP_TIME=0.2
 

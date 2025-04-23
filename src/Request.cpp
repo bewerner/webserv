@@ -1,14 +1,5 @@
 #include "webserv.hpp"
 
-// void	trim_whitespaces(std::string& str)
-// {
-// 	size_t	start = str.find_first_not_of(" \t\n\r\f\v");
-// 	size_t	end = str.find_last_not_of(" \t\n\r\f\v");
-
-// 	std::string	new_str = str.substr(start, end + 1 - start);
-// 	str = new_str;
-// }
-
 static void	decode_URI(std::string& URI)
 {
 	size_t pos;
@@ -31,7 +22,6 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 		return (false);
 	}
 
-	// std::regex	pattern(R"([A-Z]+\s+\S+\s+HTTP/\d+\.\d{1,3}\s*)");
 	std::regex	pattern(R"([A-Z]+ +\/\S* +HTTP\/\d+\.?\d{0,3} *)");
 	if (!std::regex_match(start_line, pattern))
 	{
@@ -60,12 +50,6 @@ bool	parse_start_line(Request& request , std::istringstream& iss_header, int& st
 		return (false);
 	}
 
-	// size_t	pos = start_line.find("HTTP");
-	// if (start_line[pos + 4] != '1' && start_line[pos + 5] != '.')
-	// {
-	// 	status_code = 505;
-	// 	return (false);
-	// }
 	if (protocol.find("HTTP/1.") == std::string::npos)
 	{
 		status_code = 505;
@@ -132,9 +116,6 @@ bool	parse_header(Request& request, std::string& key, std::string& value, int& s
 				throw std::invalid_argument("Value can only contain digits");
 			request.content_length = std::stoul(value);
 			request.remaining_bytes = request.content_length;
-			// if (value_length > std::numeric_limits<unsigned int>::max())
-				// throw std::out_of_range("Value is greater than max unsigned int");
-			// request.content_length = static_cast<unsigned int>(value_length);
 		}
 		catch (std::invalid_argument &e)
 		{
@@ -161,7 +142,6 @@ void	parse_request(Request& request, int& status_code)
 	std::string	line;
 	while (std::getline(iss_header, line))
 	{
-		// std::regex	pattern(R"(\S+:\s*(\S+\s*)+)");
 		std::smatch match;
 		std::regex	pattern(R"((\S+):\s*(\S+.*?)\s*)");
 		if (!std::regex_match(line, match, pattern))
@@ -170,16 +150,12 @@ void	parse_request(Request& request, int& status_code)
 			continue ;
 		}
 
-		// size_t	pos = line.find(":");
-		// std::string	key = line.substr(0, pos);
-		// std::string	value = line.substr(pos + 1);
 		std::string key = match[1];
 		std::string value = match[2];
 
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 		if (key != "content-type")
 			std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-		// trim_whitespaces(value);
 
 		if (!parse_header(request, key, value, status_code))
 			return ;

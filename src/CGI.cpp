@@ -67,10 +67,6 @@ void	CGI::exec(const Server& server, const Request& request, const Response& res
 	std::string pwd = target.substr(0, target.rfind('/'));
 	if (pwd.empty())
 		pwd = "/";
-	// std::string relative_pwd = pwd;
-	// if(pwd.rfind('/') != 0)
-	// 	relative_pwd = pwd.substr(std::filesystem::current_path().string().length());
-
 
 	std::string remote_addr, server_addr;
 	uint8_t* ip = (uint8_t*)&server.sockaddr.sin_addr;
@@ -129,7 +125,6 @@ void	CGI::exec(const Server& server, const Request& request, const Response& res
 		env_str.emplace_back("CONTENT_LENGTH=" + std::to_string(request.content_length));
 	if (!request.content_type.empty())
 		env_str.emplace_back("CONTENT_TYPE=" + request.content_type);
-	// std::cerr << "-------------------------------------------------------------------------------------------------------------- " << request.content_type << std::endl;
 	std::vector<char*> env;
 	for (std::string& str : env_str)
 		env.emplace_back(str.data());
