@@ -76,19 +76,19 @@ void validateHost(const std::vector<Server>& servers)
 		{
 			if (config.host.s_addr == INADDR_ANY)
 				continue;
-				
+
 			if (config.host_str == "0.0.0.0" || config.host_str == "127.0.0.1" || config.host_str == "localhost")
 				continue;
-				
+
 			struct sockaddr_in sa;
 			int result = inet_pton(AF_INET, config.host_str.c_str(), &(sa.sin_addr));
 			if (result == 1)
 				continue;
-				
+
 			std::regex hostnameRegex("^[a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,61}[a-zA-Z0-9])?$");
 			if (!std::regex_match(config.host_str, hostnameRegex))
 			{
-				std::cerr << "Warning: Potentially invalid host in server '" 
+				std::cerr << "Warning: Potentially invalid host in server '"
 					<< config.server_name << "': " << config.host_str << std::endl;
 			}
 		}
@@ -102,10 +102,10 @@ void validatePort(const std::vector<Server>& servers)
 		const auto& server = servers[i];
 		if (server.port < 1)
 		{
-			throw std::runtime_error("Critical Error: Invalid port in server: " 
+			throw std::runtime_error("Critical Error: Invalid port in server: "
 				+ std::to_string(server.port));
 		}
-		
+
 		for (size_t j = i + 1; j < servers.size(); j++) {
 			if (server.host.s_addr == servers[j].host.s_addr && server.port == servers[j].port) {
 				std::cout << "Warning: Multiple servers listening on "
@@ -125,7 +125,7 @@ void validateRootAlias(std::vector<Server>& servers)
 			{
 				if (!location.root.empty() && !location.alias.empty())
 				{
-					throw std::runtime_error("Critical Error: Both 'root' and 'alias' directives are specified in location '" 
+					throw std::runtime_error("Critical Error: Both 'root' and 'alias' directives are specified in location '"
 						+ location.path + "' in server " + (config.server_name.empty() ? "[empty]" : config.server_name));
 				}
 				if (location.root.empty())
@@ -158,9 +158,9 @@ void validateLocations(std::vector<Server>& servers)
 		{
 			if (c.locations.empty())
 			{
-				std::cerr << "Warning: No locations defined in server " 
+				std::cerr << "Warning: No locations defined in server "
 					<< (c.server_name.empty() ? "[empty]" : c.server_name) << ". Adding default location." << std::endl;
-				
+
 				c.locations.push_back(get_fallback_location(c));
 			}
 			else
@@ -171,22 +171,22 @@ void validateLocations(std::vector<Server>& servers)
 					pathCounts[loc.path]++;
 					if (pathCounts[loc.path] > 1)
 					{
-						std::cerr << "Warning: Duplicate location path: " 
+						std::cerr << "Warning: Duplicate location path: "
 							<< loc.path << " in server " << (c.server_name.empty() ? "[empty]" : c.server_name) << std::endl;
 					}
-					
+
 					if (loc.path.empty() || loc.path[0] != '/')
 					{
-						std::cerr << "Warning: Location path doesn't start with a slash: " 
+						std::cerr << "Warning: Location path doesn't start with a slash: "
 							<< loc.path << " in server " << (c.server_name.empty() ? "[empty]" : c.server_name) << std::endl;
 					}
 				}
-				
+
 				if (pathCounts["/"] == 0)
 				{
-					std::cerr << "Warning: No fallback location '/' defined in server " 
+					std::cerr << "Warning: No fallback location '/' defined in server "
 						<< (c.server_name.empty() ? "[empty]" : c.server_name) << ". A default one will be added." << std::endl;
-					
+
 					c.locations.push_back(get_fallback_location(c));
 				}
 			}
@@ -211,45 +211,6 @@ void validateDavMethods(std::vector<Server>& servers)
 	}
 }
 
-void validateClientMaxBodySize(const std::vector<Server>& servers)
-{
-	for (const auto& server : servers)
-	{
-		for (const auto& config : server.conf)
-		{
-			if (config.client_max_body_size > 0)
-			{
-				if (config.client_max_body_size > 1073741824)
-				{
-					std::cerr << "Warning: Very large client_max_body_size: " 
-						<< config.client_max_body_size << " bytes in server " 
-						<< (config.server_name.empty() ? "[empty]" : config.server_name) 
-						<< ". This might cause memory issues." << std::endl;
-				}
-			}
-			for (const auto& loc : config.locations)
-			{
-				if (loc.client_max_body_size > 0)
-				{
-					if (loc.client_max_body_size > 1073741824)
-					{
-						std::cerr << "Warning: Very large client_max_body_size: " 
-							<< loc.client_max_body_size << " bytes in location " 
-							<< loc.path << ". This might cause memory issues." << std::endl;
-					}
-					if (config.client_max_body_size > 0 && loc.client_max_body_size > config.client_max_body_size)
-					{
-						std::cerr << "Warning: Location client_max_body_size (" 
-							<< loc.client_max_body_size << ") is larger than server client_max_body_size ("
-							<< config.client_max_body_size << ") in location " << loc.path 
-							<< ". Server limit will take precedence." << std::endl;
-					}
-				}
-			}
-		}
-	}
-}
-
 void validateErrorPage(const std::vector<Server>& servers)
 {
 	for (const auto& server : servers)
@@ -258,51 +219,48 @@ void validateErrorPage(const std::vector<Server>& servers)
 		{
 			for (const auto& [errorCode, errorPage] : config.error_page)
 			{
-				if (errorCode < 100 || errorCode > 599)
+				if (errorCode < 300 || errorCode > 599)
 				{
-					std::cerr << "Warning: Invalid HTTP error code: " 
-						<< errorCode << " in server " 
-						<< (config.server_name.empty() ? "[empty]" : config.server_name) << std::endl;
+					throw std::invalid_argument("Critical Error: Invalid HTTP error code: " + std::to_string(errorCode) + " in server " + config.server_name + "  (value must be between 300 and 599)");
 				}
 			}
-			
-			for (const auto& loc : config.locations)
-			{
-				for (const auto& [errorCode, errorPage] : loc.error_page)
-				{
-					if (errorCode < 300 || errorCode > 599)
-					{
-						throw std::invalid_argument("Critical Error: Invalid HTTP error code: " + std::to_string(errorCode) + " in location " + loc.path + "  (value must be between 300 and 599)");
-					}
-				}
-			}
+
+			// for (const auto& loc : config.locations)
+			// {
+			// 	for (const auto& [errorCode, errorPage] : loc.error_page)
+			// 	{
+			// 		if (errorCode < 300 || errorCode > 599)
+			// 		{
+			// 			throw std::invalid_argument("Critical Error: Invalid HTTP error code: " + std::to_string(errorCode) + " in location " + loc.path + "  (value must be between 300 and 599)");
+			// 		}
+			// 	}
+			// }
 		}
 	}
 }
 
-void validateConfigurations(std::vector<Server>& servers) 
+void validateConfigurations(std::vector<Server>& servers)
 {
 	if (servers.empty())
 		throw std::runtime_error("Error: No valid server configurations found");
 
 	expand_relative_roots(servers);
 
-	try
-	{
-		validatePort(servers);
-		validateRootAlias(servers);
-		validateHost(servers);
-		validateDavMethods(servers);
-		validateClientMaxBodySize(servers);
-		validateErrorPage(servers);
-		validateLocations(servers);
-		
-		std::cout << "Configuration validation completed successfully." << std::endl;
-	}
-	catch (const std::exception& e) 
-	{
-		std::cerr << e.what() << std::endl;
-		std::cerr << "Server will not start due to configuration issues." << std::endl;
-		throw;
-	}
+	// try
+	// {
+	validatePort(servers);
+	validateRootAlias(servers);
+	validateHost(servers);
+	validateDavMethods(servers);
+	validateErrorPage(servers);
+	validateLocations(servers);
+
+	std::cout << "Configuration validation completed successfully." << std::endl;
+	// }
+	// catch (const std::exception& e)
+	// {
+	// 	std::cerr << e.what() << std::endl;
+	// 	std::cerr << "Server will not start due to configuration issues." << std::endl;
+	// 	throw;
+	// }
 }

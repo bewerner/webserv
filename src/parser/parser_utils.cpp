@@ -8,7 +8,7 @@ in_addr	host_string_to_in_addr(const std::string& host)
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(host.c_str(), nullptr, &hints, &res) != 0)
-		throw std::runtime_error("Failed to resolve address");
+		throw std::runtime_error("Failed to resolve address " + host);
 	addr = ((sockaddr_in*)res->ai_addr)->sin_addr;
 	freeaddrinfo(res);
 	return (addr);
@@ -60,13 +60,13 @@ void printData(const std::vector<Server>& servers)
 		}
 		else
 			std::cout << "Default Server Name: NAMELESS\n";
-		
+
 		for (const auto& config : server.conf)
 		{
 			std::string configName = config.server_name;
 			if (configName.empty())
 				configName = "(NONAME)" + host_ip + ":" + std::to_string(server.port);
-				
+
 			std::cout << "Config Name: " << configName << "\n";
 			std::cout << "Host: " << inet_ntoa(config.host) << " (Original String: " << config.host_str << ")\n";
 			std::cout << "Port: " << config.port << "\n";
@@ -103,7 +103,7 @@ void printData(const std::vector<Server>& servers)
 				for (const auto& method : loc.dav_methods)
 					std::cout << method << " ";
 				std::cout << "\n";
-				
+
 				std::cout << "  Error Pages: \n";
 				for (const auto& [errorCode, errorPage] : loc.error_page)
 					std::cout << "    " << errorCode << ": " << errorPage << "\n";
@@ -123,7 +123,7 @@ void printData(const std::vector<Server>& servers)
 			if (defaultName.empty())
 				defaultName = "(NONAME)" + host_ip + ":" + std::to_string(server.port);
 		}
-		std::cout << std::left << std::setw(30) << ipPort 
+		std::cout << std::left << std::setw(30) << ipPort
 					<< " -> Default Server: " << defaultName << "\n";
 		std::cout << "   Available servers: ";
 		bool firstPrinted = false;
@@ -138,7 +138,7 @@ void printData(const std::vector<Server>& servers)
 				std::cout << displayName << " (DEFAULT)";
 			else
 				std::cout << displayName;
-				
+
 			firstPrinted = true;
 		}
 		std::cout << ", \n\n";

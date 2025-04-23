@@ -20,16 +20,16 @@ bool safeStringToUInt16(const std::string& str, uint16_t& result)
 	if (!isNumeric(str))
 		return false;
 
-	try 
+	try
 	{
 		long value = std::stol(str);
 		if (value < 0 || value > UINT16_MAX)
 			return false;
-		
+
 		result = static_cast<uint16_t>(value);
 		return true;
 	}
-	catch (const std::exception&) 
+	catch (const std::exception&)
 	{
 		return false;
 	}
@@ -45,7 +45,7 @@ bool safeStringToSizeT(const std::string& str, size_t& result)
 		long long value = std::stoll(str);
 		if (value < 0)
 			return false;
-		
+
 		result = static_cast<size_t>(value);
 		return true;
 	}
@@ -74,15 +74,15 @@ void parseListen(ServerConfig& config, const std::string& value, std::string& sh
 		throw std::runtime_error("Invalid port number: " + portPart);
 	}
 	config.host_str = hostPart;
-	try
-	{
+	// try
+	// {
 		config.host = host_string_to_in_addr(hostPart);
-	}
-	catch (const std::exception& e)
-	{
-		std::cerr << "Warning: Host '" << hostPart << "' could not be resolved. Using 0.0.0.0" << std::endl;
-		config.host.s_addr = INADDR_ANY;
-	}
+	// }
+	// catch (const std::exception& e)
+	// {
+	// 	std::cerr << "Warning: Host '" << hostPart << "' could not be resolved. Using 0.0.0.0" << std::endl;
+	// 	config.host.s_addr = INADDR_ANY;
+	// }
 	config.port = port;
 	sharedHost = hostPart;
 	sharedPort = config.port;
@@ -230,10 +230,10 @@ void saveServerConfig(ServerConfig& config, const std::string& line, std::string
 		int errorCode;
 		std::string errorCodeStr;
 		std::string errorPage;
-		
+
 		if (!(errorStream >> errorCodeStr) || !isNumeric(errorCodeStr))
 			throw std::runtime_error("Invalid error_page format. Expected 'error_page CODE PATH', got: " + value);
-		
+
 		try {
 			errorCode = std::stoi(errorCodeStr);
 			if (errorCode < 100 || errorCode > 599)
@@ -244,7 +244,7 @@ void saveServerConfig(ServerConfig& config, const std::string& line, std::string
 
 		if (!(errorStream >> errorPage))
 			throw std::runtime_error("Missing error page path in error_page directive");
-			
+
 		config.error_page[errorCode] = errorPage;
 	}
 }
@@ -383,11 +383,11 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 					std::string value = removeSpaces(configLine.substr(sepPos + 1));
 					if (!value.empty() && value.back() == ';')
 						value.pop_back();
-					
+
 					std::string host = "0.0.0.0";
 					std::string portPart = "80";
 					size_t colonPos = value.find(':');
-					
+
 					if (colonPos != std::string::npos)
 					{
 						host = value.substr(0, colonPos);
@@ -397,11 +397,11 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 						portPart = value;
 					else
 						host = value;
-					
+
 					uint16_t port;
 					if (!safeStringToUInt16(portPart, port))
 						throw std::runtime_error("Invalid port number: " + portPart);
-					
+
 					listenDirectives.push_back({host, port});
 				}
 			}
@@ -425,7 +425,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 					std::string value = removeSpaces(configLine.substr(sepPos + 1));
 					if (!value.empty() && value.back() == ';')
 						value.pop_back();
-					
+
 					std::istringstream nameStream(value);
 					std::string name;
 					while (nameStream >> name)
@@ -452,7 +452,7 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 			{
 				std::string tempHost = "0.0.0.0";
 				uint16_t tempPort = 80;
-				
+
 				if (!configLine.empty())
 					saveServerConfig(baseConfig, configLine, tempHost, tempPort);
 			}
@@ -463,11 +463,11 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 		}
 	}
 
-	try 
+	try
 	{
 		processLocationConfigs(locationLines, baseConfig);
 	}
-	catch (const std::exception& e) 
+	catch (const std::exception& e)
 	{
 		throw std::runtime_error("Error processing location configs: " + std::string(e.what()));
 	}
@@ -477,28 +477,28 @@ void extractMultiPortServerData(std::vector<Server>& servers, const std::string&
 		for (const std::string& name : serverNames)
 		{
 			Server newServer;
-			try
-			{
+			// try
+			// {
 				newServer.host = host_string_to_in_addr(host_str);
-			}
-			catch (const std::exception& e)
-			{
-				std::cerr << "Warning: Host '" << host_str << "' could not be resolved. Using 0.0.0.0" << std::endl;
-				newServer.host.s_addr = INADDR_ANY;
-			}
+			// }
+			// catch (const std::exception& e)
+			// {
+			// 	std::cerr << "Warning: Host '" << host_str << "' could not be resolved. Using 0.0.0.0" << std::endl;
+			// 	newServer.host.s_addr = INADDR_ANY;
+			// }
 			newServer.host_str = host_str;
 			newServer.port = port;
 
 			ServerConfig serverConfig = baseConfig;
-			try
-			{
+			// try
+			// {
 				serverConfig.host = host_string_to_in_addr(host_str);
-			}
-			catch (const std::exception& e)
-			{
-				std::cerr << "Warning: Host '" << host_str << "' could not be resolved. Using 0.0.0.0" << std::endl;
-				serverConfig.host.s_addr = INADDR_ANY;
-			}
+			// }
+			// catch (const std::exception& e)
+			// {
+			// 	std::cerr << "Warning: Host '" << host_str << "' could not be resolved. Using 0.0.0.0" << std::endl;
+			// 	serverConfig.host.s_addr = INADDR_ANY;
+			// }
 			serverConfig.host_str = host_str;
 			serverConfig.port = port;
 			serverConfig.server_name = name;
@@ -517,7 +517,7 @@ void groupServersByPort(const std::vector<Server>& allServers, std::vector<Serve
 	{
 		std::pair<in_addr_t, uint16_t> hostPort = {server.host.s_addr, server.port};
 		hostPortGroups[hostPort].push_back(&server);
-		
+
 		if (firstServerPerHostPort.find(hostPort) == firstServerPerHostPort.end())
 			firstServerPerHostPort[hostPort] = &server;
 	}
@@ -574,7 +574,7 @@ void parser(std::vector<Server>& servers, std::string confPath)
 
 	if (it == end)
 		throw std::runtime_error("No server blocks found in configuration file");
-		
+
 	while (it != end)
 	{
 		std::string serverBlock = it->str();
@@ -593,7 +593,7 @@ void parser(std::vector<Server>& servers, std::string confPath)
 
 	if (allServers.empty())
 		throw std::runtime_error("No valid server configurations found");
-		
+
 	groupServersByPort(allServers, servers);
 	validateConfigurations(servers);
 	try
