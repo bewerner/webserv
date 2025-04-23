@@ -101,7 +101,7 @@ for DIR in $(ls -d */); do
 		echo "❌  $DIR/response/nginx.txt 🔍 $DIR/response/webserv.txt    🔧 $DIR/conf.conf    📝 $DIR/request.txt    $DIR/logs/nginx.txt 🔍 $DIR/logs/webserv.txt"
 	fi
 
-	SLEEP_TIME=0.2
+	SLEEP_TIME=0.3
 
 done
 
