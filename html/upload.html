@@ -151,10 +151,10 @@
 <div class="container">
 	<div class="title">Upload File</div>
 	<form id="uploadForm" action="/cgi-bin/upload.pl" method="post" enctype="multipart/form-data" style="width: 100%;">
-	<label for="fileInput" class="upload-box" id="dropZone">
-		Drop your file here or click to select
-		<input type="file" name="file" id="fileInput" class="hidden-input">
-	</label>
+	<div for="fileInput" class="upload-box" id="dropZone" onclick="fileInput.click()">
+			Drop your file here or click to select
+			<input type="file" name="file" id="fileInput" class="hidden-input">
+	</div>
 	<div id="fileName" style="color: #aaa; font-size: 14px;"></div>
 	<div style="margin-top: 20px;">
 		<button type="submit" class="button">Upload</button>
@@ -175,8 +175,6 @@
 	function updateFileNameDisplay(file) {
 		fileNameDisplay.textContent = file ? `Selected file: ${file.name}` : '';
 	}
-
-	dropZone.addEventListener('click', () => fileInput.click());
 
 	fileInput.addEventListener('change', () => {
 		if (fileInput.files.length > 0) {
@@ -217,7 +215,7 @@
 		.then(response => response.text())
 		.then(text => {
 			fileNameDisplay.innerHTML = text;
-			loadFiles(); // refresh file list after upload
+			loadFiles();
 		})
 		.catch(err => {
 			fileNameDisplay.innerHTML = '<span style="color:red;">Upload failed.</span>';
