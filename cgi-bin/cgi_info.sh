@@ -26,6 +26,7 @@ cat <<EOF
 			white-space: pre-line;
 			color: white;
 			text-align: left;
+			line-break: anywhere;
 		}
 		.container {
 			display: flex;
@@ -38,8 +39,7 @@ cat <<EOF
 			box-shadow: 0 4px 12px rgba(3, 24, 7, 0.294);
 			margin: 8px;
 			width: max-content;
-			min-width: 375px;
-			max-width: 70%;
+			width: 70%;
 			min-width: 700px;
 		}
 		.title {
@@ -83,8 +83,6 @@ cat <<EOF
 		<p>
 EOF
 
-echo "All arguments: $0 $@"
-echo ""
 echo "$(env)"
 
 cat <<EOF
