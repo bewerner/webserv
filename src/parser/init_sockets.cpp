@@ -15,7 +15,7 @@ void	init_sockets(std::vector<Server>& servers)
 		if (server.socket < 0)
 			throw std::runtime_error("Failed to open socket");
 		int opt = 1;
-		if (setsockopt(server.socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
+		if (setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
 			throw std::runtime_error("setsockopt failed");
 		if (fcntl(server.socket, F_SETFL, O_NONBLOCK) < 0)
 			throw std::runtime_error("fcntl failed");
